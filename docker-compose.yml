@@ -1,6 +1,6 @@
 services:
   mediamtx:
-    image: bluenviron/mediamtx:latest
+    image: bluenviron/mediamtx:latest-ffmpeg
     restart: unless-stopped
     ports:
       - "1935:1935"              # RTMP ingest OBS
