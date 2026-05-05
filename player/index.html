@@ -128,18 +128,50 @@
       left: 50%; transform: translateX(-50%);
     }
 
-    /* Bouton fullscreen custom (visible au survol du player) */
-    .btn-fs {
-      position: absolute; top: 10px; right: 10px; z-index: 4;
-      width: 32px; height: 32px; border-radius: 6px;
-      border: 1px solid rgba(255,255,255,.15);
-      background: rgba(8,10,15,.55); color: rgba(255,255,255,.75);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; opacity: 0; transition: opacity .2s, background .15s;
-      backdrop-filter: blur(4px);
+    /* ── Barre de contrôles custom ─────────────────────────────────────────
+       Apparaît au survol du player, en bas à droite.
+       Contient : bouton son + slider volume + séparateur + bouton fullscreen.
+    ──────────────────────────────────────────────────────────────────────── */
+    .ctrl-bar {
+      position: absolute; bottom: 14px; right: 14px; z-index: 4;
+      display: flex; align-items: center; gap: 4px;
+      padding: 4px 8px; border-radius: 30px;
+      background: rgba(8,10,15,.62); border: 1px solid rgba(255,255,255,.1);
+      backdrop-filter: blur(8px);
+      opacity: 0; transition: opacity .2s;
+      pointer-events: none;
     }
-    .player-outer:hover .btn-fs { opacity: 1; }
-    .btn-fs:hover { background: rgba(8,10,15,.85); color: #fff; }
+    .player-outer:hover .ctrl-bar,
+    .player-outer:fullscreen .ctrl-bar,
+    .player-outer:-webkit-full-screen .ctrl-bar { opacity: 1; pointer-events: auto; }
+
+    .ctrl-btn, .btn-fs {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: none; background: transparent; color: rgba(255,255,255,.8);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; padding: 0;
+      transition: color .15s, background .15s;
+    }
+    .ctrl-btn:hover, .btn-fs:hover { color: #fff; background: rgba(255,255,255,.1); }
+
+    /* Slider volume */
+    .vol-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 70px; height: 3px; border-radius: 2px;
+      background: rgba(255,255,255,.25); outline: none; cursor: pointer;
+    }
+    .vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+      background: #fff; cursor: pointer; box-shadow: 0 0 4px rgba(0,0,0,.4);
+      transition: transform .15s;
+    }
+    .vol-slider::-webkit-slider-thumb:hover { transform: scale(1.25); }
+    .vol-slider::-moz-range-thumb {
+      width: 12px; height: 12px; border-radius: 50%; border: none;
+      background: #fff; cursor: pointer;
+    }
+
+    .ctrl-sep { width: 1px; height: 16px; background: rgba(255,255,255,.15); flex-shrink: 0; }
 
     /* Overlay chargement */
     .player-overlay {
@@ -222,8 +254,8 @@
 <main>
   <div class="player-outer" id="playerOuter">
     <div class="crop-wrapper">
-      <!-- controlsList="nofullscreen" : supprime le bouton fullscreen natif -->
-      <video id="v" controls playsinline autoplay controlsList="nofullscreen"></video>
+      <!-- Pas de controls natifs : on gère son + fullscreen en custom -->
+      <video id="v" playsinline autoplay></video>
     </div>
 
     <div class="player-overlay" id="overlay">
@@ -231,12 +263,28 @@
       <span class="overlay-label" id="overlayLabel">En attente du flux…</span>
     </div>
 
-    <button class="btn-fs" id="btnFs" title="Plein écran">
-      <svg id="fsIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
-        <path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
-      </svg>
-    </button>
+    <!-- Barre de contrôles custom -->
+    <div class="ctrl-bar">
+      <!-- Son -->
+      <button class="ctrl-btn" id="muteBtn" title="Couper / activer le son">
+        <svg id="volIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        </svg>
+      </button>
+      <input class="vol-slider" id="volSlider" type="range" min="0" max="1" step="0.02" value="1" title="Volume" />
+
+      <div class="ctrl-sep"></div>
+
+      <!-- Fullscreen -->
+      <button class="btn-fs" id="btnFs" title="Plein écran">
+        <svg id="fsIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+          <path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="drag-handle" id="dragHandle" title="Glisser pour redimensionner">
@@ -340,20 +388,48 @@
     document.body.style.userSelect = '';
   });
 
+  // ── Son ───────────────────────────────────────────────────────────────────
+  const volSlider = document.getElementById('volSlider');
+  const volIcon   = document.getElementById('volIcon');
+
+  const SVG_VOL_ON  = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>`;
+  const SVG_VOL_OFF = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`;
+
+  function updateVolIcon() {
+    volIcon.innerHTML = (video.muted || video.volume === 0) ? SVG_VOL_OFF : SVG_VOL_ON;
+    // Filled track via gradient
+    const pct = video.muted ? 0 : Math.round(video.volume * 100);
+    volSlider.style.background = `linear-gradient(to right, #fff ${pct}%, rgba(255,255,255,.25) ${pct}%)`;
+  }
+
+  document.getElementById('muteBtn').addEventListener('click', () => {
+    video.muted = !video.muted;
+    if (video.muted) volSlider.value = 0;
+    else             volSlider.value = video.volume || 1;
+    updateVolIcon();
+  });
+
+  volSlider.addEventListener('input', () => {
+    video.volume = parseFloat(volSlider.value);
+    video.muted  = video.volume === 0;
+    updateVolIcon();
+  });
+
+  // Initialise l'icône une fois le flux démarré
+  video.addEventListener('volumechange', updateVolIcon);
+  updateVolIcon();
+
   // ── Fullscreen ────────────────────────────────────────────────────────────
-  const fsIconExpand = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>`;
-  const fsIconShrink = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>`;
+  const SVG_FS_EXPAND = `<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>`;
+  const SVG_FS_SHRINK = `<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>`;
 
   document.getElementById('btnFs').addEventListener('click', () => {
-    if (!document.fullscreenElement) {
-      playerOuter.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
+    if (!document.fullscreenElement) playerOuter.requestFullscreen().catch(() => {});
+    else                              document.exitFullscreen().catch(() => {});
   });
 
   document.addEventListener('fullscreenchange', () => {
-    document.getElementById('btnFs').innerHTML = document.fullscreenElement ? fsIconShrink : fsIconExpand;
+    document.getElementById('fsIcon').innerHTML = document.fullscreenElement ? SVG_FS_SHRINK : SVG_FS_EXPAND;
   });
 
   // ── UI ────────────────────────────────────────────────────────────────────
