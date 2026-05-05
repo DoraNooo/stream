@@ -8,4 +8,5 @@ services:
       - "127.0.0.1:8088:80"
     volumes:
       - ./deploy/nginx-stream.conf:/etc/nginx/nginx.conf:ro
-    command: ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]
+    command: >
+      sh -c "mkdir -p /opt/data/hls/live && /usr/local/nginx/sbin/nginx -g 'daemon off;'"
