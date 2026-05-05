@@ -30,6 +30,7 @@ paths:
   "~^live/.+$":
     runOnReady: >-
       ffmpeg -loglevel warning
+      -rtsp_transport tcp
       -i rtsp://127.0.0.1:8554/$MTX_PATH
       -c:v copy
       -c:a libopus -b:a 128k -ar 48000
