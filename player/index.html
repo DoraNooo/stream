@@ -21,7 +21,6 @@
     }
 
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height: 1.5; }
-
     body { display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh; }
 
     /* ── Header ── */
@@ -33,22 +32,14 @@
       backdrop-filter: blur(12px);
       position: sticky; top: 0; z-index: 10;
     }
-
     .logo { display: flex; align-items: center; gap: 0.55rem; font-size: 1rem; font-weight: 600; letter-spacing: -.01em; text-decoration: none; color: inherit; }
-
-    .logo-dot {
-      width: 9px; height: 9px; border-radius: 50%;
-      background: var(--muted); transition: background .3s, box-shadow .3s;
-    }
+    .logo-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); transition: background .3s, box-shadow .3s; }
     .logo-dot.live { background: var(--red); box-shadow: 0 0 8px var(--red); animation: pulse 2s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(.85)} }
-
     .header-right { display: flex; align-items: center; gap: 0.75rem; }
-
     .badge { font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:.2rem .55rem; border-radius:20px; transition: all .3s; }
     .badge.offline { background:rgba(255,255,255,.05); color:var(--muted); border:1px solid var(--border); }
     .badge.online  { background:rgba(255,69,96,.15); color:var(--red); border:1px solid rgba(255,69,96,.25); }
-
     .mode-tag { font-size:.68rem; font-weight:600; padding:.18rem .5rem; border-radius:20px; border:1px solid var(--border); color:var(--muted); }
     .mode-tag.webrtc { background:rgba(108,99,255,.12); color:#a09bff; border-color:rgba(108,99,255,.2); }
     .mode-tag.hls    { background:rgba(255,180,0,.08);  color:#ffc94d; border-color:rgba(255,180,0,.18); }
@@ -56,31 +47,97 @@
     /* ── Main ── */
     main { display:flex; flex-direction:column; align-items:center; padding:1.5rem 1rem 2rem; gap:1.25rem; }
 
-    /* ── Player ── */
-    .player-wrap {
-      position:relative; width:min(98vw,130rem);
-      background:#000; border-radius:var(--radius); overflow:hidden;
+    /* ── Player wrap : clip/crop container ── */
+    .player-outer {
+      width: min(98vw, 130rem);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #000;
       box-shadow: 0 0 0 1px var(--border), 0 24px 80px rgba(0,0,0,.7);
+      position: relative;
+      /* Ratio dynamique via JS — défaut 32:9 */
     }
 
-    video { display:block; width:100%; max-height:82vh; background:#000; }
+    /* Padding-top trick pour ratio responsive */
+    .player-ratio {
+      position: relative;
+      width: 100%;
+      /* --ratio-pt calculé par JS */
+      padding-top: var(--ratio-pt, 28.125%); /* 32:9 par défaut */
+      transition: padding-top .35s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* La vidéo est toujours 32:9 (ratio source) à l'intérieur */
+    .player-ratio video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      /* --vid-w calculé par JS selon le crop */
+      width: var(--vid-w, 100%);
+      height: auto;
+      transform: translate(-50%, -50%);
+      display: block;
+      background: #000;
+      transition: width .35s cubic-bezier(.4,0,.2,1);
+    }
 
     .player-overlay {
-      position:absolute; inset:0; display:flex; flex-direction:column;
-      align-items:center; justify-content:center; gap:1rem;
-      background:rgba(8,10,15,.75); transition:opacity .3s;
-      pointer-events:none;
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem;
+      background: rgba(8,10,15,.75); transition: opacity .3s;
+      pointer-events: none; z-index: 2;
     }
-    .player-overlay.hidden { opacity:0; }
-
-    .spinner {
-      width:48px; height:48px;
-      border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent);
-      border-radius:50%; animation:spin .8s linear infinite;
-    }
+    .player-overlay.hidden { opacity: 0; }
+    .spinner { width:48px; height:48px; border:3px solid rgba(255,255,255,.1); border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
     @keyframes spin { to{transform:rotate(360deg)} }
-
     .overlay-label { font-size:.82rem; color:var(--muted); }
+
+    /* ── Crop bar ── */
+    .crop-bar {
+      width: min(98vw, 130rem);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .crop-label {
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-right: .25rem;
+    }
+
+    .crop-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      padding: .35rem .75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--muted);
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s, box-shadow .15s;
+    }
+    .crop-btn:hover { background: #1e2230; color: var(--text); }
+    .crop-btn.active {
+      background: rgba(108,99,255,.18);
+      border-color: var(--accent);
+      color: #c0bbff;
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .crop-icon {
+      display: inline-block;
+      border: 1.5px solid currentColor;
+      border-radius: 2px;
+      opacity: .75;
+    }
 
     /* ── Panel ── */
     .panel {
@@ -90,9 +147,7 @@
       display:flex; flex-wrap:wrap; gap:.75rem; align-items:center;
     }
     .panel label { font-size:.78rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
-
     .input-row { display:flex; flex:1; gap:.5rem; min-width:0; }
-
     input[type="text"] {
       flex:1; min-width:0; padding:.55rem .85rem;
       border-radius:8px; border:1px solid var(--border);
@@ -101,24 +156,13 @@
     }
     input[type="text"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
     input[type="text"]::placeholder { color:var(--muted); }
-
-    .btn {
-      display:inline-flex; align-items:center; gap:.4rem;
-      padding:.55rem 1.1rem; border-radius:8px; border:1px solid transparent;
-      font-size:.9rem; font-weight:600; cursor:pointer;
-      transition:background .15s, transform .1s, box-shadow .2s; white-space:nowrap;
-    }
+    .btn { display:inline-flex; align-items:center; gap:.4rem; padding:.55rem 1.1rem; border-radius:8px; border:1px solid transparent; font-size:.9rem; font-weight:600; cursor:pointer; transition:background .15s, transform .1s, box-shadow .2s; white-space:nowrap; }
     .btn-primary { background:var(--accent); color:#fff; box-shadow:0 4px 16px rgba(108,99,255,.3); }
     .btn-primary:hover { background:#7b73ff; box-shadow:0 4px 20px rgba(108,99,255,.5); transform:translateY(-1px); }
     .btn-primary:active { transform:translateY(0); }
 
     /* ── Status bar ── */
-    .status-bar {
-      width:min(98vw,130rem); font-size:.82rem;
-      display:flex; align-items:center; gap:.5rem;
-      padding:.6rem .9rem; border-radius:8px; border:1px solid transparent;
-      transition:opacity .25s;
-    }
+    .status-bar { width:min(98vw,130rem); font-size:.82rem; display:flex; align-items:center; gap:.5rem; padding:.6rem .9rem; border-radius:8px; border:1px solid transparent; transition:opacity .25s; }
     .status-bar.hidden { opacity:0; pointer-events:none; }
     .status-bar.error { background:rgba(255,69,96,.08); border-color:rgba(255,69,96,.2); color:#ff7a91; }
     .status-bar.info  { background:rgba(108,99,255,.08); border-color:rgba(108,99,255,.2); color:#a09bff; }
@@ -141,12 +185,34 @@
 </header>
 
 <main>
-  <div class="player-wrap">
-    <video id="v" controls playsinline autoplay></video>
-    <div class="player-overlay" id="overlay">
-      <div class="spinner"></div>
-      <span class="overlay-label" id="overlayLabel">En attente du flux…</span>
+  <div class="player-outer" id="playerOuter">
+    <div class="player-ratio" id="playerRatio">
+      <video id="v" controls playsinline autoplay></video>
+      <div class="player-overlay" id="overlay">
+        <div class="spinner"></div>
+        <span class="overlay-label" id="overlayLabel">En attente du flux…</span>
+      </div>
     </div>
+  </div>
+
+  <!-- Barre de crop -->
+  <div class="crop-bar" id="cropBar">
+    <span class="crop-label">Format</span>
+
+    <button class="crop-btn active" data-ratio="32:9" title="Plein écran 32:9">
+      <svg class="crop-icon" width="28" height="8" viewBox="0 0 28 8"><rect width="28" height="8" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/></svg>
+      32:9
+    </button>
+
+    <button class="crop-btn" data-ratio="21:9" title="Ultrawide 21:9">
+      <svg class="crop-icon" width="21" height="9" viewBox="0 0 21 9"><rect width="21" height="9" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/></svg>
+      21:9
+    </button>
+
+    <button class="crop-btn" data-ratio="16:9" title="Standard 16:9">
+      <svg class="crop-icon" width="16" height="9" viewBox="0 0 16 9"><rect width="16" height="9" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/></svg>
+      16:9
+    </button>
   </div>
 
   <div class="panel">
@@ -176,9 +242,44 @@
   const liveBadge  = document.getElementById('liveBadge');
   const liveDot    = document.getElementById('liveDot');
   const modeTag    = document.getElementById('modeTag');
+  const playerRatio = document.getElementById('playerRatio');
 
   let hlsInstance = null;
-  let pc          = null;
+  let pc = null;
+
+  // ── Crop ──────────────────────────────────────────────────────────────────
+  // Résolution source OBS : 32:9
+  const SOURCE_W = 32, SOURCE_H = 9;
+
+  const CROPS = {
+    '32:9': { w: 32, h: 9 },
+    '21:9': { w: 21, h: 9 },
+    '16:9': { w: 16, h: 9 },
+  };
+
+  function applyCrop(ratio) {
+    const crop = CROPS[ratio] || CROPS['32:9'];
+    // padding-top % pour forcer l'aspect ratio du container
+    const pt = (crop.h / crop.w * 100).toFixed(4) + '%';
+    // La vidéo doit être élargie pour que la zone crop.w/crop.h
+    // corresponde à 100% de la largeur du container.
+    // Facteur : la vidéo source est SOURCE_W:SOURCE_H
+    // On veut voir crop.w de large sur SOURCE_W total → vid occupe SOURCE_W/crop.w * 100%
+    const vw = (SOURCE_W / crop.w * 100).toFixed(4) + '%';
+    playerRatio.style.setProperty('--ratio-pt', pt);
+    playerRatio.style.setProperty('--vid-w', vw);
+  }
+
+  document.getElementById('cropBar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.crop-btn');
+    if (!btn) return;
+    document.querySelectorAll('.crop-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyCrop(btn.dataset.ratio);
+  });
+
+  // Appliquer le crop par défaut
+  applyCrop('32:9');
 
   // ── UI helpers ─────────────────────────────────────────────────────────────
   function setStatus(type, text) {
@@ -200,12 +301,8 @@
     }
   }
 
-  function showOverlay(label) {
-    overlay.classList.remove('hidden');
-    overlayLbl.textContent = label || '';
-  }
-
-  function hideOverlay() { overlay.classList.add('hidden'); }
+  function showOverlay(label) { overlay.classList.remove('hidden'); overlayLbl.textContent = label || ''; }
+  function hideOverlay()       { overlay.classList.add('hidden'); }
 
   // ── Cleanup ────────────────────────────────────────────────────────────────
   function stopAll() {
@@ -219,9 +316,7 @@
   // ── WebRTC / WHEP ──────────────────────────────────────────────────────────
   async function playWebRTC(key) {
     const whepUrl = '/live/' + encodeURIComponent(key) + '/whep';
-
     pc = new RTCPeerConnection({ iceServers: [] });
-
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.addTransceiver('audio', { direction: 'recvonly' });
 
@@ -246,16 +341,12 @@
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // Attendre la fin de la collecte ICE avant d'envoyer l'offer
     await new Promise(resolve => {
       if (pc.iceGatheringState === 'complete') { resolve(); return; }
-      pc.addEventListener('icegatheringstatechange', function handler() {
-        if (pc.iceGatheringState === 'complete') {
-          pc.removeEventListener('icegatheringstatechange', handler);
-          resolve();
-        }
+      pc.addEventListener('icegatheringstatechange', function h() {
+        if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', h); resolve(); }
       });
-      setTimeout(resolve, 2000); // timeout sécurité
+      setTimeout(resolve, 2000);
     });
 
     const resp = await fetch(whepUrl, {
@@ -263,58 +354,34 @@
       headers: { 'Content-Type': 'application/sdp' },
       body: pc.localDescription.sdp,
     });
-
     if (!resp.ok) throw new Error('WHEP ' + resp.status);
-
-    const sdpAnswer = await resp.text();
-    await pc.setRemoteDescription({ type: 'answer', sdp: sdpAnswer });
+    await pc.setRemoteDescription({ type: 'answer', sdp: await resp.text() });
   }
 
   // ── HLS fallback ───────────────────────────────────────────────────────────
   function playHLS(key) {
     const src = '/hls/' + encodeURIComponent(key) + '/index.m3u8';
-
     if (window.Hls && window.Hls.isSupported()) {
-      hlsInstance = new window.Hls({
-        liveDurationInfinity: true,
-        lowLatencyMode: true,
-        backBufferLength: 8,
-        maxLiveSyncPlaybackRate: 1.1,
-      });
+      hlsInstance = new window.Hls({ liveDurationInfinity: true, lowLatencyMode: true, backBufferLength: 8, maxLiveSyncPlaybackRate: 1.1 });
       hlsInstance.loadSource(src);
       hlsInstance.attachMedia(video);
-
       hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
-        hideOverlay();
-        setLive(true, 'HLS');
-        setStatus('info', 'HLS Low-Latency actif (~2 s).');
+        hideOverlay(); setLive(true, 'HLS'); setStatus('info', 'HLS Low-Latency actif (~2 s).');
       });
-
       hlsInstance.on(window.Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) {
-          setLive(false, null);
-          setStatus('error', 'Flux HLS indisponible. Vérifie que la diffusion OBS est bien active.');
-          showOverlay('Flux indisponible');
-        }
+        if (data.fatal) { setLive(false, null); setStatus('error', 'Flux HLS indisponible.'); showOverlay('Flux indisponible'); }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src;
-      video.play().catch(() => {});
-      hideOverlay();
-      setLive(true, 'HLS');
+      video.src = src; video.play().catch(() => {}); hideOverlay(); setLive(true, 'HLS');
     } else {
-      setStatus('error', 'Navigateur incompatible HLS. Essaie Chrome ou Safari.');
-      showOverlay('Navigateur incompatible');
+      setStatus('error', 'Navigateur incompatible HLS. Essaie Chrome ou Safari.'); showOverlay('Navigateur incompatible');
     }
   }
 
   // ── Entrée principale ──────────────────────────────────────────────────────
   async function play(key) {
-    stopAll();
-    setStatus('');
-    showOverlay('Connexion WebRTC…');
-
+    stopAll(); setStatus(''); showOverlay('Connexion WebRTC…');
     try {
       await playWebRTC(key);
     } catch (err) {
@@ -326,7 +393,6 @@
     }
   }
 
-  // ── Événements ────────────────────────────────────────────────────────────
   document.getElementById('go').addEventListener('click', () => {
     const k = keyInput.value.trim();
     if (!k) { setStatus('error', 'Saisis une clé de stream.'); return; }
