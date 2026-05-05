@@ -1,33 +1,24 @@
-# mediamtx — RTMP ingest → WebRTC (WHEP) + HLS fallback
-# Doc : https://github.com/bluenviron/mediamtx
+# mediamtx v1.x — RTMP ingest → WebRTC (WHEP) + HLS fallback
+# Les protocoles sont actifs par défaut ; pas de booléens enable/disable.
 
 logLevel: info
 logDestinations: [stdout]
 
-# ── RTMP (OBS → serveur) ──────────────────────────────────────────────────────
-rtmp: yes
+# ── Adresses d'écoute ─────────────────────────────────────────────────────────
 rtmpAddress: :1935
-rtmpEncryption: no
-
-# ── HLS (fallback navigateurs sans WebRTC) ───────────────────────────────────
-hls: yes
 hlsAddress: :8888
+webrtcAddress: :8889
+
+# ── HLS ───────────────────────────────────────────────────────────────────────
 hlsAllowOrigin: "*"
-hlsAlwaysRemux: yes
-hlsVariant: lowLatency        # LL-HLS
 hlsSegmentCount: 7
 hlsSegmentDuration: 1s
-hlsPartDuration: 200ms        # fragments 200 ms → ~0,5 s de latence HLS
+hlsPartDuration: 200ms        # LL-HLS : fragments 200 ms
 
-# ── WebRTC (WHEP — latence <1 s) ─────────────────────────────────────────────
-webrtc: yes
-webrtcAddress: :8889
+# ── WebRTC ────────────────────────────────────────────────────────────────────
 webrtcAllowOrigin: "*"
-
-# IP publique du VPS : nécessaire pour que les ICE candidates soient joignables
-# depuis l'extérieur. Remplacer si l'IP change.
+# IP publique du VPS : nécessaire pour les ICE candidates
 webrtcAdditionalHosts: [178.105.48.96]
-
 # Port UDP fixe pour ICE (exposé dans docker-compose)
 webrtcICEUDPMuxAddress: :8189
 
