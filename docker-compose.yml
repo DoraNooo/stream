@@ -1,0 +1,11 @@
+services:
+  nginx-rtmp:
+    image: alfg/nginx-rtmp:latest
+    restart: unless-stopped
+    # OBS envoie en RTMP sur 1935 ; HTTP ne sert que les segments HLS (idéalement derrière le Nginx du host).
+    ports:
+      - "1935:1935"
+      - "127.0.0.1:8088:80"
+    volumes:
+      - ./deploy/nginx-stream.conf:/etc/nginx/nginx.conf:ro
+    command: ["/usr/local/nginx/sbin/nginx", "-g", "daemon off;"]

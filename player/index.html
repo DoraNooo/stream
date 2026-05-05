@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Live</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0;
+      background: #0c0d10;
+      color: #e8eaef;
+      font-family: system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    video {
+      width: min(96vw, 120rem);
+      max-height: 85vh;
+      background: #000;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.45);
+    }
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+      max-width: 96vw;
+    }
+    input[type="text"] {
+      width: min(90vw, 28rem);
+      padding: 0.45rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid #333842;
+      background: #16181e;
+      color: inherit;
+    }
+    button {
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid #3d4454;
+      background: #242832;
+      color: inherit;
+      cursor: pointer;
+    }
+    button:hover { background: #2e3442; }
+    .muted { font-size: 0.85rem; opacity: 0.72; text-align: center; max-width: 36rem; line-height: 1.4; }
+    .err { color: #f59b9b; font-size: 0.9rem; max-width: 36rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <video id="v" controls playsinline muted></video>
+  <div class="bar">
+    <input id="key" type="text" placeholder="Clé de stream (ex: abcxyz)" autocomplete="off" />
+    <button type="button" id="go">Lancer</button>
+  </div>
+  <p class="muted">
+    Colle la même valeur que dans OBS après <code>/live/</code>. Ultra-large : le lecteur affiche la vidéo ; les bandes latérales dépendent du ratio de l’écran du spectateur.
+  </p>
+  <p id="msg" class="err" hidden></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
+  <script>
+    const video = document.getElementById('v');
+    const keyInput = document.getElementById('key');
+    const msg = document.getElementById('msg');
+    let hls;
+
+    function showErr(t) {
+      msg.hidden = !t;
+      msg.textContent = t || '';
+    }
+
+    function absolutePlaylist(key) {
+      const path = '/hls/live/' + encodeURIComponent(key) + '/index.m3u8';
+      return new URL(path, window.location.origin).href;
+    }
+
+    function destroyHls() {
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+    }
+
+    function play(key) {
+      showErr('');
+      destroyHls();
+      const src = absolutePlaylist(key.trim());
+      if (window.Hls && window.Hls.isSupported()) {
+        hls = new window.Hls({ liveDurationInfinity: true });
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(window.Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) showErr('Flux indisponible ou clé incorrecte (attends quelques secondes après le début d’émission).');
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+      } else {
+        showErr('Navigateur incompatible avec HLS ; essaye Safari ou un navigateur récent.');
+        return;
+      }
+      video.play().catch(() => {});
+    }
+
+    document.getElementById('go').addEventListener('click', () => {
+      const k = keyInput.value.trim();
+      if (!k) {
+        showErr('Indique une clé de stream.');
+        return;
+      }
+      history.replaceState(null, '', '?key=' + encodeURIComponent(k));
+      play(k);
+    });
+
+    const q = new URLSearchParams(location.search).get('key');
+    if (q) {
+      keyInput.value = q;
+      play(q);
+    }
+  </script>
+</body>
+</html>
