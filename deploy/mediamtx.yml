@@ -1,5 +1,4 @@
-# mediamtx v1.x — RTMP ingest → WebRTC (WHEP) + HLS fallback
-# Les protocoles sont actifs par défaut ; pas de booléens enable/disable.
+# mediamtx v1.18+ — RTMP ingest → WebRTC (WHEP) + HLS fallback
 
 logLevel: info
 logDestinations: [stdout]
@@ -10,17 +9,17 @@ hlsAddress: :8888
 webrtcAddress: :8889
 
 # ── HLS ───────────────────────────────────────────────────────────────────────
-hlsAllowOrigin: "*"
+hlsAllowOrigins: ["*"]
 hlsSegmentCount: 7
 hlsSegmentDuration: 1s
-hlsPartDuration: 200ms        # LL-HLS : fragments 200 ms
+hlsPartDuration: 200ms
 
 # ── WebRTC ────────────────────────────────────────────────────────────────────
-webrtcAllowOrigin: "*"
-# IP publique du VPS : nécessaire pour les ICE candidates
+webrtcAllowOrigins: ["*"]
+# IP publique du VPS — nécessaire pour les ICE candidates externes
 webrtcAdditionalHosts: [178.105.48.96]
-# Port UDP fixe pour ICE (exposé dans docker-compose)
-webrtcICEUDPMuxAddress: :8189
+# Port UDP fixe pour ICE (exposé dans docker-compose + UFW)
+webrtcLocalUDPAddress: :8189
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
