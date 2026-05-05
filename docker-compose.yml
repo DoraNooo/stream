@@ -1,12 +1,11 @@
 services:
-  nginx-rtmp:
-    image: alfg/nginx-rtmp:latest
+  mediamtx:
+    image: bluenviron/mediamtx:latest
     restart: unless-stopped
-    # OBS envoie en RTMP sur 1935 ; HTTP ne sert que les segments HLS (idéalement derrière le Nginx du host).
     ports:
-      - "1935:1935"
-      - "127.0.0.1:8088:80"
+      - "1935:1935"              # RTMP ingest OBS
+      - "127.0.0.1:8888:8888"   # HLS (fallback, proxié par Nginx host)
+      - "127.0.0.1:8889:8889"   # WebRTC signaling WHEP (proxié par Nginx host)
+      - "8189:8189/udp"         # WebRTC ICE UDP — doit être accessible directement
     volumes:
-      - ./deploy/nginx-stream.conf:/etc/nginx/nginx.conf:ro
-    command: >
-      sh -c "mkdir -p /opt/data/hls/live && /usr/local/nginx/sbin/nginx -g 'daemon off;'"
+      - ./deploy/mediamtx.yml:/mediamtx.yml:ro
