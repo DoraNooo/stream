@@ -459,7 +459,7 @@
 
   // ── WebRTC / WHEP ─────────────────────────────────────────────────────────
   async function playWebRTC(key) {
-    const whepUrl = '/live/' + encodeURIComponent(key) + '/whep';
+    const whepUrl = '/webrtc/live/' + encodeURIComponent(key) + '/whep';
     pc = new RTCPeerConnection({ iceServers: [] });
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.addTransceiver('audio', { direction: 'recvonly' });

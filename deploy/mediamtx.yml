@@ -23,4 +23,17 @@ webrtcLocalUDPAddress: :8189
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
+  # Chaque flux live/<clé> publié par OBS :
+  # → ffmpeg lit le flux RTSP et le re-publie dans webrtc/live/<clé>
+  #   avec l'audio transcodé en Opus (compatible WebRTC).
+  # Le path live/<clé> reste intact pour HLS.
+  "~^live/.+$":
+    runOnReady: >-
+      ffmpeg -loglevel warning
+      -i rtsp://127.0.0.1:8554/$MTX_PATH
+      -c:v copy
+      -c:a libopus -b:a 128k -ar 48000
+      -f rtsp rtsp://127.0.0.1:8554/webrtc/$MTX_PATH
+    runOnReadyRestart: yes
+
   all_others:
