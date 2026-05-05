@@ -326,7 +326,12 @@
       const src = absolutePlaylist(key.trim());
 
       if (window.Hls && window.Hls.isSupported()) {
-        hls = new window.Hls({ liveDurationInfinity: true, lowLatencyMode: false });
+        hls = new window.Hls({
+          liveDurationInfinity: true,
+          lowLatencyMode: true,
+          backBufferLength: 8,
+          maxLiveSyncPlaybackRate: 1.1,
+        });
         hls.loadSource(src);
         hls.attachMedia(video);
 
