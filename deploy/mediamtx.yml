@@ -29,15 +29,16 @@ paths:
   # Le path live/<clé> reste intact pour HLS.
   "~^live/.+$":
     runOnReady: >-
-      ffmpeg -loglevel warning
+      sh -c "sleep 3; exec ffmpeg -loglevel warning
       -rtsp_transport tcp
-      -analyzeduration 3000000
-      -probesize 10000000
+      -analyzeduration 15000000
+      -probesize 50000000
       -i rtsp://127.0.0.1:8554/$MTX_PATH
+      -map 0:v:0 -map 0:a:0
       -c:v copy
       -c:a libopus -b:a 128k -ar 48000
       -f rtsp -rtsp_transport tcp -flush_packets 1
-      rtsp://127.0.0.1:8554/webrtc/$MTX_PATH
+      rtsp://127.0.0.1:8554/webrtc/$MTX_PATH"
     runOnReadyRestart: yes
 
   all_others:
