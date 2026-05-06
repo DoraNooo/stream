@@ -32,7 +32,8 @@ paths:
       ffmpeg -loglevel warning
       -fflags nobuffer
       -flags low_delay
-      -i rtmp://127.0.0.1:1935/$MTX_PATH
+      -rtsp_transport tcp
+      -i rtsp://127.0.0.1:8554/$MTX_PATH
       -c:v copy
       -c:a libopus -b:a 128k -ar 48000
       -f rtsp -rtsp_transport tcp -flush_packets 1
