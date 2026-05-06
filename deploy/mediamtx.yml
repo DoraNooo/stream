@@ -26,11 +26,9 @@ webrtcLocalUDPAddress: :8189
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
-  # Mode LATENCE uniquement :
-  # flux envoyés vers live/ll-<clé>
-  # → ffmpeg lit le flux RTSP et le re-publie dans webrtc/live/ll-<clé>
-  #   avec l'audio transcodé en Opus (compatible WebRTC).
-  # Mode QUALITE (live/hq-<clé>) ne passe PAS ici, reste en HLS pur.
+  # Mode LATENCE : live/ll-<clé> → WebRTC son Opus sur webrtc/live/ll-<clé>.
+  # Mode QUALITÉ : OBS publie live/hq-<clé> ; un relais ffmpeg crée live/hqc-<clé>
+  # pour le muxer HLS (voir bloc ~^live/hq- ci-dessous).
   "~^live/ll-.+$":
     runOnReady: >-
       sh -c "sleep 3; exec ffmpeg -loglevel warning
@@ -43,6 +41,21 @@ paths:
       -c:a libopus -b:a 128k -ar 48000
       -f rtsp -rtsp_transport tcp -flush_packets 1
       rtsp://127.0.0.1:8554/webrtc/$MTX_PATH"
+    runOnReadyRestart: yes
+
+  # Mode QUALITÉ : OBS publie toujours live/hq-<base>. Le muxer HLS peut rester bloqué
+  # sur le flux SRT/x264 brut ; ffmpeg remuxe vers live/hqc-<base> (même codecs).
+  # Préfixe « hqc » évite de matcher à nouveau ~^live/hq-… (regex Go sans lookahead).
+  # Le player mode Qualité lit hqc-<base> (voir player/index.html).
+  "~^live/hq-(.+)$":
+    runOnReady: >-
+      sh -c "sleep 2; exec ffmpeg -loglevel warning -rtsp_transport tcp
+      -fflags +genpts -avoid_negative_ts make_zero
+      -analyzeduration 10000000 -probesize 32000000
+      -i rtsp://127.0.0.1:8554/$MTX_PATH
+      -map 0:v:0 -map 0:a:0 -c copy
+      -f rtsp -rtsp_transport tcp -flush_packets 1
+      rtsp://127.0.0.1:8554/live/hqc-$G1"
     runOnReadyRestart: yes
 
   all_others:

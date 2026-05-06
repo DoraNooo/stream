@@ -484,13 +484,15 @@
     if (!k) return '';
     if (k.startsWith('publish:')) k = k.slice('publish:'.length);
     if (k.startsWith('live/'))    k = k.slice('live/'.length);
-    if (k.startsWith('ll-') || k.startsWith('hq-')) k = k.slice(3);
+    if (k.startsWith('hqc-')) k = k.slice('hqc-'.length);
+    else if (k.startsWith('ll-') || k.startsWith('hq-')) k = k.slice(3);
     return k.trim();
   }
   function resolvePathKey(input) {
     const base = normalizeBaseKey(input);
     if (!base) return '';
-    return (forceHLS ? 'hq-' : 'll-') + base;
+    // Qualité : HLS lit le relais remuxé live/hqc-<base> (voir deploy/mediamtx.yml).
+    return (forceHLS ? 'hqc-' : 'll-') + base;
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
