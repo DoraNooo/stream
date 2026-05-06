@@ -23,11 +23,12 @@ webrtcLocalUDPAddress: :8189
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
-  # Chaque flux live/<clé> publié par OBS :
-  # → ffmpeg lit le flux RTSP et le re-publie dans webrtc/live/<clé>
+  # Mode LATENCE uniquement :
+  # flux envoyés vers live/ll-<clé>
+  # → ffmpeg lit le flux RTSP et le re-publie dans webrtc/live/ll-<clé>
   #   avec l'audio transcodé en Opus (compatible WebRTC).
-  # Le path live/<clé> reste intact pour HLS.
-  "~^live/.+$":
+  # Mode QUALITE (live/hq-<clé>) ne passe PAS ici, reste en HLS pur.
+  "~^live/ll-.+$":
     runOnReady: >-
       sh -c "sleep 3; exec ffmpeg -loglevel warning
       -rtsp_transport tcp
