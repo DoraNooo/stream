@@ -342,7 +342,7 @@
   <div class="panel">
     <label for="key">Clé de stream</label>
     <div class="input-row">
-      <input id="key" type="text" placeholder="ex : monStream2026xz" autocomplete="off" spellcheck="false" />
+      <input id="key" type="text" placeholder="ex : test (auto ll- / hq- selon le mode)" autocomplete="off" spellcheck="false" />
       <button type="button" class="btn btn-primary" id="go">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5a.5.5 0 0 1 .765-.424l10 5.5a.5.5 0 0 1 0 .848l-10 5.5A.5.5 0 0 1 3 13.5v-11Z"/></svg>
         Lancer
@@ -478,6 +478,21 @@
   function showOverlay(label) { overlay.classList.remove('hidden'); overlayLbl.textContent = label || ''; }
   function hideOverlay()       { overlay.classList.add('hidden'); }
 
+  // ── Clé stream (auto ll-/hq-) ─────────────────────────────────────────────
+  function normalizeBaseKey(input) {
+    let k = (input || '').trim();
+    if (!k) return '';
+    if (k.startsWith('publish:')) k = k.slice('publish:'.length);
+    if (k.startsWith('live/'))    k = k.slice('live/'.length);
+    if (k.startsWith('ll-') || k.startsWith('hq-')) k = k.slice(3);
+    return k.trim();
+  }
+  function resolvePathKey(input) {
+    const base = normalizeBaseKey(input);
+    if (!base) return '';
+    return (forceHLS ? 'hq-' : 'll-') + base;
+  }
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
   function stopAll() {
     if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
@@ -582,8 +597,9 @@
     forceHLS = hq;
     btnModeLow.className = 'mode-btn' + (hq ? '' : ' active-latency');
     btnModeHQ.className  = 'mode-btn' + (hq ? ' active-quality' : '');
+    updateUrl();
     // Si un stream est en cours, relancer avec le nouveau mode
-    const k = keyInput.value.trim();
+    const k = resolvePathKey(keyInput.value);
     if (k && (hlsInstance || pc)) play(k);
   }
 
@@ -591,7 +607,7 @@
   btnModeHQ.addEventListener('click',  () => setMode(true));
 
   function updateUrl() {
-    const k = keyInput.value.trim();
+    const k = normalizeBaseKey(keyInput.value);
     const params = new URLSearchParams();
     if (k) params.set('key', k);
     if (forceHLS) params.set('mode', 'quality');
@@ -599,8 +615,10 @@
   }
 
   document.getElementById('go').addEventListener('click', () => {
-    const k = keyInput.value.trim();
+    const raw = keyInput.value.trim();
+    const k = resolvePathKey(raw);
     if (!k) { setStatus('error', 'Saisis une clé de stream.'); return; }
+    keyInput.value = normalizeBaseKey(raw);
     updateUrl();
     play(k);
   });
@@ -612,7 +630,7 @@
   const q  = qp.get('key');
   const qm = qp.get('mode');
   if (qm === 'quality') setMode(true);
-  if (q) { keyInput.value = q; play(q); }
+  if (q) { keyInput.value = normalizeBaseKey(q); play(resolvePathKey(q)); }
 })();
 </script>
 </body>
