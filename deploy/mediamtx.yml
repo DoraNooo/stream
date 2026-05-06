@@ -9,10 +9,13 @@ hlsAddress: :8888
 webrtcAddress: :8889
 
 # ── HLS ───────────────────────────────────────────────────────────────────────
+# lowLatency (LL-HLS) peut rester bloqué sans playlist sur x264 + B-frames (hq-*).
+# fmp4 = segments classiques, tolérant ; latence un peu plus haute (OK pour mode Qualité).
 hlsAllowOrigins: ["*"]
-hlsSegmentCount: 7
-hlsSegmentDuration: 1s
-hlsPartDuration: 200ms
+hlsVariant: fmp4
+hlsAlwaysRemux: true
+hlsSegmentCount: 10
+hlsSegmentDuration: 2s
 
 # ── WebRTC ────────────────────────────────────────────────────────────────────
 webrtcAllowOrigins: ["*"]
