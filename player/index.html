@@ -210,6 +210,21 @@
     .crop-btn.active { background:rgba(108,99,255,.18); border-color:var(--accent); color:#c0bbff; box-shadow:0 0 0 2px var(--accent-glow); }
     .crop-icon { display:inline-block; border:1.5px solid currentColor; border-radius:2px; opacity:.8; flex-shrink:0; }
 
+    /* ── Mode toggle (Latence / Qualité) ── */
+    .mode-sep { flex: 1; min-width: 12px; }
+    .mode-group { display:flex; align-items:center; gap:.3rem; }
+    .mode-group-label { font-size:.7rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-right:.2rem; }
+    .mode-btn {
+      display:inline-flex; align-items:center; gap:.3rem;
+      padding:.28rem .65rem; border-radius:6px;
+      border:1px solid var(--border); background:var(--surface2);
+      color:var(--muted); font-size:.76rem; font-weight:600; cursor:pointer;
+      transition:background .15s,color .15s,border-color .15s,box-shadow .15s;
+    }
+    .mode-btn:hover { background:#1e2230; color:var(--text); }
+    .mode-btn.active-latency { background:rgba(108,99,255,.18); border-color:var(--accent); color:#c0bbff; box-shadow:0 0 0 2px var(--accent-glow); }
+    .mode-btn.active-quality { background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.4); color:#86efac; box-shadow:0 0 0 2px rgba(34,197,94,.2); }
+
     /* ── Panel clé ── */
     .panel {
       flex-shrink:0; width:min(98vw,130rem); background:var(--surface);
@@ -308,6 +323,20 @@
       <svg class="crop-icon" width="16" height="9" viewBox="0 0 16 9"><rect width="16" height="9" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/></svg>
       16:9
     </button>
+
+    <div class="mode-sep"></div>
+
+    <div class="mode-group">
+      <span class="mode-group-label">Mode</span>
+      <button class="mode-btn active-latency" id="btnModeLow" title="WebRTC — latence &lt;1 s, B-frames désactivés">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Latence
+      </button>
+      <button class="mode-btn" id="btnModeHQ" title="HLS — ~4-6 s, B-frames activés, meilleure qualité image">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        Qualité
+      </button>
+    </div>
   </div>
 
   <div class="panel">
@@ -324,7 +353,7 @@
   <div class="status-bar hidden" id="statusBar"></div>
 </main>
 
-<footer>stream.barium-saas.fr &mdash; WebRTC &lt;1 s · HLS fallback</footer>
+<footer>stream.barium-saas.fr &mdash; <span id="footerMode">WebRTC &lt;1 s</span> · HLS Qualité disponible</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7"></script>
 <script>
@@ -342,6 +371,7 @@
 
   let hlsInstance = null;
   let pc = null;
+  let forceHLS = false; // true = mode Qualité
 
   // ── Chrome height dynamique ────────────────────────────────────────────────
   function updateChromeH() {
@@ -500,15 +530,19 @@
     await pc.setRemoteDescription({ type: 'answer', sdp: await resp.text() });
   }
 
-  // ── HLS fallback ──────────────────────────────────────────────────────────
-  function playHLS(key) {
+  // ── HLS ───────────────────────────────────────────────────────────────────
+  function playHLS(key, qualityMode) {
     const src = '/hls/' + encodeURIComponent(key) + '/index.m3u8';
+    const hlsCfg = qualityMode
+      ? { liveDurationInfinity: true, lowLatencyMode: false, backBufferLength: 30, maxLiveSyncPlaybackRate: 1.0 }
+      : { liveDurationInfinity: true, lowLatencyMode: true,  backBufferLength: 8,  maxLiveSyncPlaybackRate: 1.1 };
+    const label  = qualityMode ? 'HLS Qualité (~4-6 s).' : 'HLS Low-Latency (~2 s).';
     if (window.Hls && window.Hls.isSupported()) {
-      hlsInstance = new window.Hls({ liveDurationInfinity: true, lowLatencyMode: true, backBufferLength: 8, maxLiveSyncPlaybackRate: 1.1 });
+      hlsInstance = new window.Hls(hlsCfg);
       hlsInstance.loadSource(src);
       hlsInstance.attachMedia(video);
       hlsInstance.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {}); hideOverlay(); setLive(true, 'HLS'); setStatus('info', 'HLS Low-Latency (~2 s).');
+        video.play().catch(() => {}); hideOverlay(); setLive(true, 'HLS'); setStatus('info', label);
       });
       hlsInstance.on(window.Hls.Events.ERROR, (_, d) => {
         if (d.fatal) { setLive(false, null); setStatus('error', 'Flux HLS indisponible.'); showOverlay('Flux indisponible'); }
@@ -522,7 +556,13 @@
 
   // ── Entrée principale ─────────────────────────────────────────────────────
   async function play(key) {
-    stopAll(); setStatus(''); showOverlay('Connexion WebRTC…');
+    stopAll(); setStatus('');
+    if (forceHLS) {
+      showOverlay('Chargement HLS Qualité…');
+      playHLS(key, true);
+      return;
+    }
+    showOverlay('Connexion WebRTC…');
     try {
       await playWebRTC(key);
     } catch (err) {
@@ -530,20 +570,48 @@
       setStatus('info', 'WebRTC indisponible — bascule HLS (~2 s).');
       showOverlay('Bascule HLS…');
       if (pc) { pc.close(); pc = null; }
-      playHLS(key);
+      playHLS(key, false);
     }
+  }
+
+  // ── Toggle Latence / Qualité ───────────────────────────────────────────────
+  const btnModeLow = document.getElementById('btnModeLow');
+  const btnModeHQ  = document.getElementById('btnModeHQ');
+
+  function setMode(hq) {
+    forceHLS = hq;
+    btnModeLow.className = 'mode-btn' + (hq ? '' : ' active-latency');
+    btnModeHQ.className  = 'mode-btn' + (hq ? ' active-quality' : '');
+    // Si un stream est en cours, relancer avec le nouveau mode
+    const k = keyInput.value.trim();
+    if (k && (hlsInstance || pc)) play(k);
+  }
+
+  btnModeLow.addEventListener('click', () => setMode(false));
+  btnModeHQ.addEventListener('click',  () => setMode(true));
+
+  function updateUrl() {
+    const k = keyInput.value.trim();
+    const params = new URLSearchParams();
+    if (k) params.set('key', k);
+    if (forceHLS) params.set('mode', 'quality');
+    history.replaceState(null, '', '?' + params.toString());
   }
 
   document.getElementById('go').addEventListener('click', () => {
     const k = keyInput.value.trim();
     if (!k) { setStatus('error', 'Saisis une clé de stream.'); return; }
-    history.replaceState(null, '', '?key=' + encodeURIComponent(k));
+    updateUrl();
     play(k);
   });
 
   keyInput.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('go').click(); });
 
-  const q = new URLSearchParams(location.search).get('key');
+  // Restaurer depuis l'URL
+  const qp = new URLSearchParams(location.search);
+  const q  = qp.get('key');
+  const qm = qp.get('mode');
+  if (qm === 'quality') setMode(true);
   if (q) { keyInput.value = q; play(q); }
 })();
 </script>
