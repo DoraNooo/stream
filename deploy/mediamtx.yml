@@ -48,14 +48,15 @@ paths:
   # Le player mode Qualité lit hqc-<base> (voir player/index.html).
   "~^live/hq-(.+)$":
     runOnReady: >-
-      sh -c "sleep 2; exec ffmpeg -loglevel warning
+      sh -c "sleep 3; exec ffmpeg -loglevel warning -hide_banner
       -rw_timeout 15000000
       -rtmp_live live
-      -fflags +genpts -avoid_negative_ts make_zero
+      -fflags +genpts+discardcorrupt -avoid_negative_ts make_zero
       -i rtmp://127.0.0.1:1935/$MTX_PATH
-      -map 0:v:0 -map 0:a:0 -c copy
-      -f rtsp -rtsp_transport tcp -flush_packets 1
-      rtsp://127.0.0.1:8554/live/hqc-$G1"
+      -map 0:v:0 -map 0:a:0 -c copy -bsf:a aac_adtstoasc
+      -muxdelay 0 -muxpreload 0
+      -f flv -flvflags no_duration_filesize
+      rtmp://127.0.0.1:1935/live/hqc-$G1"
     runOnReadyRestart: yes
 
   all_others:
