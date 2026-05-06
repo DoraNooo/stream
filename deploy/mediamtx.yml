@@ -52,10 +52,10 @@ paths:
     runOnReady: >-
       sh -c "sleep 4; while true; do
       ffmpeg -loglevel warning -hide_banner
-      -rw_timeout 120000000
       -rtsp_transport tcp
-      -analyzeduration 15000000 -probesize 50000000
-      -fflags +genpts+discardcorrupt -avoid_negative_ts make_zero
+      -analyzeduration 15000000
+      -probesize 50000000
+      -fflags +genpts
       -i rtsp://127.0.0.1:8554/$MTX_PATH
       -map 0:v:0 -map 0:a:0 -c copy -bsf:a aac_adtstoasc
       -muxdelay 0 -muxpreload 0
