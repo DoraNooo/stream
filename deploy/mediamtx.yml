@@ -47,15 +47,16 @@ paths:
   # Préfixe « hqc » évite de matcher à nouveau ~^live/hq-… (regex Go sans lookahead).
   # Le player mode Qualité lit hqc-<base> (voir player/index.html).
   "~^live/hq-(.+)$":
-    # Micro-coupures / ffmpeg qui quitte → boucle de redémarrage ; rw_timeout en µs (120 s).
+    # Ne PAS lire le flux HQ en RTMP : MediaMTX coupe avec « too many reordered frames » (B-frames x264).
+    # Lecture RTSP/TCP puis republication RTMP vers live/hqc-* — copy, pas de transcodage VPS.
     runOnReady: >-
-      sh -c "sleep 3; while true; do
+      sh -c "sleep 4; while true; do
       ffmpeg -loglevel warning -hide_banner
       -rw_timeout 120000000
-      -rtmp_live live
-      -rtmp_buffer 10000000
+      -rtsp_transport tcp
+      -analyzeduration 15000000 -probesize 50000000
       -fflags +genpts+discardcorrupt -avoid_negative_ts make_zero
-      -i rtmp://127.0.0.1:1935/$MTX_PATH
+      -i rtsp://127.0.0.1:8554/$MTX_PATH
       -map 0:v:0 -map 0:a:0 -c copy -bsf:a aac_adtstoasc
       -muxdelay 0 -muxpreload 0
       -f flv -flvflags no_duration_filesize
