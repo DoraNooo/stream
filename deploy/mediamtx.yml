@@ -9,11 +9,10 @@ hlsAddress: :8888
 webrtcAddress: :8889
 
 # ── HLS ───────────────────────────────────────────────────────────────────────
-# lowLatency (LL-HLS) peut rester bloqué sans playlist sur x264 + B-frames (hq-*).
-# fmp4 = segments classiques, tolérant ; latence un peu plus haute (OK pour mode Qualité).
+# mpegts + segments 2s : robuste pour les relais ffmpeg et les GOP OBS (keyframes 2s).
 hlsAllowOrigins: ["*"]
-hlsVariant: fmp4
-hlsAlwaysRemux: true
+hlsVariant: mpegts
+hlsAlwaysRemux: false
 hlsSegmentCount: 10
 hlsSegmentDuration: 2s
 
@@ -49,10 +48,11 @@ paths:
   # Le player mode Qualité lit hqc-<base> (voir player/index.html).
   "~^live/hq-(.+)$":
     runOnReady: >-
-      sh -c "sleep 2; exec ffmpeg -loglevel warning -rtsp_transport tcp
+      sh -c "sleep 2; exec ffmpeg -loglevel warning
+      -rw_timeout 15000000
+      -rtmp_live live
       -fflags +genpts -avoid_negative_ts make_zero
-      -analyzeduration 10000000 -probesize 32000000
-      -i rtsp://127.0.0.1:8554/$MTX_PATH
+      -i rtmp://127.0.0.1:1935/$MTX_PATH
       -map 0:v:0 -map 0:a:0 -c copy
       -f rtsp -rtsp_transport tcp -flush_packets 1
       rtsp://127.0.0.1:8554/live/hqc-$G1"
