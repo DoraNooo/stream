@@ -509,6 +509,12 @@
       color: var(--text);
       font-size: .8rem;
     }
+    .pip-inputs.pip-coords-gated {
+      display: none;
+    }
+    html.pip-coords-unlocked .pip-inputs.pip-coords-gated {
+      display: flex;
+    }
     .pip-size-row {
       display: flex;
       align-items: center;
@@ -685,7 +691,7 @@
         <div class="pip-active-row">
           <label for="pipActiveMinimap"><input type="checkbox" id="pipActiveMinimap" checked /> Actif</label>
         </div>
-        <div class="pip-inputs">
+        <div class="pip-inputs pip-coords-gated">
           <label>Sup gauche X <input id="pipTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
           <label>Y <input id="pipTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
           <label>Inf droite X <input id="pipBRx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
@@ -702,7 +708,7 @@
         <div class="pip-active-row">
           <label for="pipActiveTimer"><input type="checkbox" id="pipActiveTimer" checked /> Actif</label>
         </div>
-        <div class="pip-inputs">
+        <div class="pip-inputs pip-coords-gated">
           <label>Sup gauche X <input id="pipTimerTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
           <label>Y <input id="pipTimerTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
           <label>Inf droite X <input id="pipTimerBRx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
@@ -869,6 +875,50 @@
   const PIP_LS_LEGACY = 'streamPipRect';
   const PIP_DEFAULT_MINIMAP = { tlx: '3500', tly: '552', brx: '4096', bry: '1152' };
   const PIP_DEFAULT_TIMER = { tlx: '3700', tly: '0', brx: '4096', bry: '30' };
+
+  const PIP_COORDS_SECRET = 'edit';
+  const PIP_COORDS_SECRET_SS = 'streamPipCoordsUnlocked_v1';
+  function pipCoordsSecretTargetOk(t) {
+    if (!t || t === document.body || t === document.documentElement) return true;
+    const tag = (t.tagName || '').toUpperCase();
+    if (tag === 'INPUT') {
+      const typ = (t.type || '').toLowerCase();
+      if (typ === 'checkbox' || typ === 'radio' || typ === 'range' || typ === 'button' || typ === 'submit' || typ === 'reset' || typ === 'file') return true;
+      return false;
+    }
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return false;
+    if (t.isContentEditable) return false;
+    return true;
+  }
+  function pipApplyCoordsUnlock(on) {
+    if (on) root.classList.add('pip-coords-unlocked');
+    else root.classList.remove('pip-coords-unlocked');
+  }
+  try {
+    if (sessionStorage.getItem(PIP_COORDS_SECRET_SS) === '1') pipApplyCoordsUnlock(true);
+  } catch (e) { /* ignore */ }
+  let pipSecretBuf = '';
+  let pipSecretTid = null;
+  document.addEventListener('keydown', function pipCoordsSecretKeydown(e) {
+    if (root.classList.contains('pip-coords-unlocked')) return;
+    if (!pipCoordsSecretTargetOk(e.target)) return;
+    const ch = e.key && e.key.length === 1 ? e.key.toLowerCase() : '';
+    if (!ch) return;
+    if (pipSecretTid != null) { clearTimeout(pipSecretTid); pipSecretTid = null; }
+    const want = PIP_COORDS_SECRET[pipSecretBuf.length];
+    if (ch === want) {
+      pipSecretBuf += ch;
+      if (pipSecretBuf.length === PIP_COORDS_SECRET.length) {
+        pipSecretBuf = '';
+        pipApplyCoordsUnlock(true);
+        try { sessionStorage.setItem(PIP_COORDS_SECRET_SS, '1'); } catch (err) {}
+        return;
+      }
+    } else {
+      pipSecretBuf = (ch === PIP_COORDS_SECRET[0]) ? ch : '';
+    }
+    pipSecretTid = setTimeout(function () { pipSecretBuf = ''; pipSecretTid = null; }, 2000);
+  });
 
   function pipParseInt(el) {
     const n = parseInt(String(el.value || '').trim(), 10);
