@@ -900,7 +900,6 @@
   let pipSecretBuf = '';
   let pipSecretTid = null;
   document.addEventListener('keydown', function pipCoordsSecretKeydown(e) {
-    if (root.classList.contains('pip-coords-unlocked')) return;
     if (!pipCoordsSecretTargetOk(e.target)) return;
     const ch = e.key && e.key.length === 1 ? e.key.toLowerCase() : '';
     if (!ch) return;
@@ -910,8 +909,14 @@
       pipSecretBuf += ch;
       if (pipSecretBuf.length === PIP_COORDS_SECRET.length) {
         pipSecretBuf = '';
-        pipApplyCoordsUnlock(true);
-        try { sessionStorage.setItem(PIP_COORDS_SECRET_SS, '1'); } catch (err) {}
+        const nowUnlocked = root.classList.contains('pip-coords-unlocked');
+        if (nowUnlocked) {
+          pipApplyCoordsUnlock(false);
+          try { sessionStorage.removeItem(PIP_COORDS_SECRET_SS); } catch (err) {}
+        } else {
+          pipApplyCoordsUnlock(true);
+          try { sessionStorage.setItem(PIP_COORDS_SECRET_SS, '1'); } catch (err) {}
+        }
         return;
       }
     } else {
