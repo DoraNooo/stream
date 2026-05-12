@@ -554,6 +554,27 @@
       min-width: 2.8rem;
       text-align: right;
     }
+    .pip-active-row {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      margin-top: .35rem;
+    }
+    .pip-active-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .72rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .pip-active-row input[type="checkbox"] {
+      width: .85rem;
+      height: .85rem;
+      accent-color: var(--accent, #6c63ff);
+      cursor: pointer;
+    }
 
     /* ── Status bar ── */
     .status-bar { flex-shrink:0; width:min(98vw,130rem); font-size:.78rem; display:flex; align-items:center; gap:.45rem; padding:.45rem .8rem; border-radius:7px; border:1px solid transparent; transition:opacity .25s; }
@@ -661,6 +682,9 @@
     <div class="pip-panel-settings pip-panel-settings-hidden" id="pipPanelSettings">
       <div class="pip-fieldset">
         <div class="pip-fieldset-title">Minimap — bas droite (px flux)</div>
+        <div class="pip-active-row">
+          <label for="pipActiveMinimap"><input type="checkbox" id="pipActiveMinimap" checked /> Actif</label>
+        </div>
         <div class="pip-inputs">
           <label>Sup gauche X <input id="pipTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
           <label>Y <input id="pipTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
@@ -675,6 +699,9 @@
       </div>
       <div class="pip-fieldset">
         <div class="pip-fieldset-title">Timer — haut droite (px flux)</div>
+        <div class="pip-active-row">
+          <label for="pipActiveTimer"><input type="checkbox" id="pipActiveTimer" checked /> Actif</label>
+        </div>
         <div class="pip-inputs">
           <label>Sup gauche X <input id="pipTimerTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
           <label>Y <input id="pipTimerTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
@@ -833,6 +860,8 @@
   const pipSizeTimer = document.getElementById('pipSizeTimer');
   const pipSizeMinimapLbl = document.getElementById('pipSizeMinimapLbl');
   const pipSizeTimerLbl = document.getElementById('pipSizeTimerLbl');
+  const pipActiveMinimap = document.getElementById('pipActiveMinimap');
+  const pipActiveTimer = document.getElementById('pipActiveTimer');
   const pipPanelSettings = document.getElementById('pipPanelSettings');
   const btnPipSettings = document.getElementById('btnPipSettings');
 
@@ -894,6 +923,8 @@
         timer:   { tlx: pipTimerTLx.value, tly: pipTimerTLy.value, brx: pipTimerBRx.value, bry: pipTimerBRy.value },
         minimapSize: readSizePct(pipSizeMinimap),
         timerSize: readSizePct(pipSizeTimer),
+        minimapActive: !!pipActiveMinimap.checked,
+        timerActive: !!pipActiveTimer.checked,
       }));
     } catch (e) { /* ignore */ }
   }
@@ -919,6 +950,8 @@
         if (!pipTimerTLx.value.trim()) applyPipBlock(t, PIP_DEFAULT_TIMER);
         if (j.minimapSize != null && j.minimapSize !== '') pipSizeMinimap.value = String(Math.max(0, Math.min(100, parseInt(j.minimapSize, 10) || 100)));
         if (j.timerSize != null && j.timerSize !== '') pipSizeTimer.value = String(Math.max(0, Math.min(100, parseInt(j.timerSize, 10) || 100)));
+        pipActiveMinimap.checked = j.minimapActive == null ? true : !!j.minimapActive;
+        pipActiveTimer.checked = j.timerActive == null ? true : !!j.timerActive;
         updatePipSizeLabels();
         return;
       }
@@ -1035,8 +1068,8 @@
       pipCanvasTimer.classList.remove('pip-canvas-visible');
       return;
     }
-    drawPipCanvas(pipCanvasMinimap, pipCtxM, normalizedPipMinimapRect(), readSizePct(pipSizeMinimap));
-    drawPipCanvas(pipCanvasTimer, pipCtxT, normalizedPipTimerRect(), readSizePct(pipSizeTimer));
+    drawPipCanvas(pipCanvasMinimap, pipCtxM, pipActiveMinimap.checked ? normalizedPipMinimapRect() : null, readSizePct(pipSizeMinimap));
+    drawPipCanvas(pipCanvasTimer, pipCtxT, pipActiveTimer.checked ? normalizedPipTimerRect() : null, readSizePct(pipSizeTimer));
   }
 
   function syncPipLoop() {
@@ -1045,8 +1078,8 @@
     pipCanvasTimer.classList.remove('pip-canvas-visible');
     if (!playerOuter.classList.contains('has-stream')) return;
     if (!pipCropModeActive()) return;
-    const okM = normalizedPipMinimapRect() && readSizePct(pipSizeMinimap) > 0;
-    const okT = normalizedPipTimerRect() && readSizePct(pipSizeTimer) > 0;
+    const okM = pipActiveMinimap.checked && normalizedPipMinimapRect() && readSizePct(pipSizeMinimap) > 0;
+    const okT = pipActiveTimer.checked && normalizedPipTimerRect() && readSizePct(pipSizeTimer) > 0;
     if (!okM && !okT) return;
     startPipLoop();
   }
@@ -1055,6 +1088,7 @@
     pipTLx, pipTLy, pipBRx, pipBRy,
     pipTimerTLx, pipTimerTLy, pipTimerBRx, pipTimerBRy,
     pipSizeMinimap, pipSizeTimer,
+    pipActiveMinimap, pipActiveTimer,
   ];
   pipAllInputs.forEach(el => {
     el.addEventListener('input', () => {
