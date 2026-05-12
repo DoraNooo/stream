@@ -74,6 +74,22 @@
       box-shadow: 0 0 0 1px var(--border), 0 20px 60px rgba(0,0,0,.6);
       transition: aspect-ratio .3s cubic-bezier(.4,0,.2,1);
     }
+    /* Fenêtré : largeur bornée pour que hauteur ≤ --player-max-h (sinon 16:9 / 21:9 se confondent) */
+    .player-outer.crop-fix-32 {
+      aspect-ratio: 32/9;
+      width: min(98vw, 130rem, calc(var(--player-max-h) * 32 / 9));
+      height: auto;
+    }
+    .player-outer.crop-fix-21 {
+      aspect-ratio: 21/9;
+      width: min(98vw, 130rem, calc(var(--player-max-h) * 21 / 9));
+      height: auto;
+    }
+    .player-outer.crop-fix-16 {
+      aspect-ratio: 16/9;
+      width: min(98vw, 130rem, calc(var(--player-max-h) * 16 / 9));
+      height: auto;
+    }
 
     /* ── Crop wrapper + vidéo ─────────────────────────────────────────────────
        Principe du crop :
@@ -90,19 +106,20 @@
       overflow: hidden;
     }
 
-    /* 21:9 & 16:9 — crop latéral : média plus large que le cadre, centré */
+    /* 21:9 & 16:9 — crop latéral centré : le cadre impose le ratio, le média couvre en gardant le sien */
     .player-outer.crop-fix-21 .crop-wrapper .crop-media,
     .player-outer.crop-fix-16 .crop-wrapper .crop-media {
       position: absolute;
+      inset: 0;
+      left: 0;
       top: 0;
-      left: 50%;
-      transform: translateX(-50%);
+      transform: none;
+      width: 100%;
       height: 100%;
-      width: auto;
-      aspect-ratio: 32/9;
       display: block;
       background: #000;
-      object-fit: unset;
+      object-fit: cover;
+      object-position: center;
     }
     /* 32:9 — tout le flux visible dans le cadre (bandes possibles si ratio ≠) */
     .player-outer.crop-fix-32 .crop-wrapper .crop-media {
@@ -156,33 +173,32 @@
     }
     .player-outer:fullscreen:not(.crop-auto) .crop-wrapper,
     .player-outer:-webkit-full-screen:not(.crop-auto) .crop-wrapper {
-      aspect-ratio: var(--crop-ar) !important;
-      width: auto; height: 100%;
-      max-width: 100vw; max-height: 100vh;
       overflow: hidden;
+      margin: 0 auto;
     }
-    .player-outer:fullscreen.crop-fix-21:not(.crop-auto) .crop-wrapper .crop-media,
-    .player-outer:fullscreen.crop-fix-16:not(.crop-auto) .crop-wrapper .crop-media,
-    .player-outer:-webkit-full-screen.crop-fix-21:not(.crop-auto) .crop-wrapper .crop-media,
-    .player-outer:-webkit-full-screen.crop-fix-16:not(.crop-auto) .crop-wrapper .crop-media {
-      height: 100%; width: auto;
-      left: 50%; transform: translateX(-50%);
-      inset: auto;
-      top: 0;
-      aspect-ratio: 32/9;
-      object-fit: unset;
+    .player-outer:fullscreen.crop-fix-32:not(.crop-auto) .crop-wrapper,
+    .player-outer:-webkit-full-screen.crop-fix-32:not(.crop-auto) .crop-wrapper {
+      aspect-ratio: 32/9 !important;
+      width: min(100vw, calc(100vh * 32 / 9));
+      height: min(100vh, calc(100vw * 9 / 32));
+      max-width: 100vw;
+      max-height: 100vh;
     }
-    .player-outer:fullscreen.crop-fix-32:not(.crop-auto) .crop-wrapper .crop-media,
-    .player-outer:-webkit-full-screen.crop-fix-32:not(.crop-auto) .crop-wrapper .crop-media {
-      inset: 0;
-      left: 0;
-      top: 0;
-      transform: none;
-      width: 100%;
-      height: 100%;
-      aspect-ratio: unset;
-      object-fit: contain;
-      object-position: center;
+    .player-outer:fullscreen.crop-fix-21:not(.crop-auto) .crop-wrapper,
+    .player-outer:-webkit-full-screen.crop-fix-21:not(.crop-auto) .crop-wrapper {
+      aspect-ratio: 21/9 !important;
+      width: min(100vw, calc(100vh * 21 / 9));
+      height: min(100vh, calc(100vw * 9 / 21));
+      max-width: 100vw;
+      max-height: 100vh;
+    }
+    .player-outer:fullscreen.crop-fix-16:not(.crop-auto) .crop-wrapper,
+    .player-outer:-webkit-full-screen.crop-fix-16:not(.crop-auto) .crop-wrapper {
+      aspect-ratio: 16/9 !important;
+      width: min(100vw, calc(100vh * 16 / 9));
+      height: min(100vh, calc(100vw * 9 / 16));
+      max-width: 100vw;
+      max-height: 100vh;
     }
     /* Plein écran + Auto : tout l’écran, cover (pas de bandes) */
     .player-outer:fullscreen.crop-auto .crop-wrapper,
