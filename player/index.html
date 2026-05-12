@@ -103,6 +103,7 @@
     ──────────────────────────────────────────────────────────────────────────*/
     .crop-wrapper {
       position: relative;
+      z-index: 0;
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -188,6 +189,14 @@
       max-width: 100vw;
       max-height: 100vh;
     }
+    /* 32:9 plein écran : forcer une composition alpha pour que le HUD HTML ne soit pas
+       recouvert par une couche vidéo matérielle (Chrome / moniteurs ultra-larges). */
+    .player-outer:fullscreen.crop-fix-32:not(.crop-auto) .crop-wrapper .crop-media,
+    .player-outer:-webkit-full-screen.crop-fix-32:not(.crop-auto) .crop-wrapper .crop-media {
+      opacity: 0.999;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+    }
     .player-outer:fullscreen.crop-fix-21:not(.crop-auto) .crop-wrapper,
     .player-outer:-webkit-full-screen.crop-fix-21:not(.crop-auto) .crop-wrapper {
       aspect-ratio: 21/9 !important;
@@ -227,7 +236,17 @@
       height: var(--player-max-h);
     }
 
-    /* Barre format en overlay (classe player-ui-visible ; en plein écran → position fixed) */
+    /* Calque HUD au-dessus de la vidéo (évite la couche matérielle qui masque les contrôles en 32:9 plein écran) */
+    .player-chrome-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      isolation: isolate;
+      transform: translateZ(0);
+    }
+
+    /* Barre format en overlay (classe player-ui-visible) */
     .fs-crop-bar {
       position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
       display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; justify-content: center;
@@ -242,17 +261,6 @@
     .player-outer.player-ui-visible .fs-crop-bar {
       opacity: 1;
       pointer-events: auto;
-    }
-    /* Plein écran : fixed + z-index élevé pour rester au-dessus de la couche vidéo
-       (surtout 32:9 sur moniteur ultra-large où le média remplit tout l’écran). */
-    .player-outer:fullscreen .fs-crop-bar,
-    .player-outer:-webkit-full-screen .fs-crop-bar {
-      position: fixed;
-      top: max(12px, env(safe-area-inset-top, 0px));
-      left: 50%;
-      right: auto;
-      transform: translateX(-50%);
-      z-index: 2147483646;
     }
     .fs-crop-bar .crop-label { margin-right: .15rem; }
     .fs-crop-bar .crop-btn { font-size: .72rem; padding: .22rem .5rem; }
@@ -274,15 +282,6 @@
     .player-outer.player-ui-visible .ctrl-bar {
       opacity: 1;
       pointer-events: auto;
-    }
-    .player-outer:fullscreen .ctrl-bar,
-    .player-outer:-webkit-full-screen .ctrl-bar {
-      position: fixed;
-      bottom: max(14px, env(safe-area-inset-bottom, 0px));
-      right: max(14px, env(safe-area-inset-right, 0px));
-      left: auto;
-      top: auto;
-      z-index: 2147483645;
     }
 
     .ctrl-btn, .btn-fs {
@@ -313,9 +312,9 @@
 
     .ctrl-sep { width: 1px; height: 16px; background: rgba(255,255,255,.15); flex-shrink: 0; }
 
-    /* Overlay chargement */
+    /* Overlay chargement — au-dessus du calque contrôles pendant chargement */
     .player-overlay {
-      position: absolute; inset: 0; z-index: 2;
+      position: absolute; inset: 0; z-index: 60;
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem;
       background: rgba(8,10,15,.78); transition: opacity .3s; pointer-events: none;
     }
@@ -440,8 +439,9 @@
       <span class="overlay-label" id="overlayLabel">En attente du flux…</span>
     </div>
 
-    <!-- Barre de contrôles custom -->
-    <div class="ctrl-bar">
+    <!-- Calque HUD : au-dessus de la vidéo (z-index + composition) -->
+    <div class="player-chrome-layer" id="playerChromeLayer">
+      <div class="ctrl-bar">
       <!-- Son -->
       <button class="ctrl-btn" id="muteBtn" title="Couper / activer le son">
         <svg id="volIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -463,13 +463,13 @@
       </button>
     </div>
 
-    <!-- Format en overlay : affiché au mouvement souris / touch (classe player-ui-visible) -->
-    <div class="fs-crop-bar" id="fsCropBar" aria-label="Format d’affichage">
+      <div class="fs-crop-bar" id="fsCropBar" aria-label="Format d’affichage">
       <span class="crop-label">Format</span>
       <button type="button" class="crop-btn active" data-w="32" data-h="9">32:9</button>
       <button type="button" class="crop-btn" data-w="21" data-h="9">21:9</button>
       <button type="button" class="crop-btn" data-w="16" data-h="9">16:9</button>
       <button type="button" class="crop-btn" data-crop="auto" title="Remplit l’écran sans bandes (crop)">Auto</button>
+      </div>
     </div>
   </div>
 
