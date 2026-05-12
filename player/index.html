@@ -1330,43 +1330,67 @@
   // ── WebRTC / WHEP ─────────────────────────────────────────────────────────
   async function playWebRTC(key) {
     const whepUrl = '/webrtc/live/' + encodeURIComponent(key) + '/whep';
-    // STUN publics : sans ICE, WebRTC échoue souvent sur Android (4G / NAT opérateur).
+    // STUN publics — utile sur NAT ; si l’opérateur bloque l’UDP vers le port ICE du VPS,
+    // seul un relais TURN (côté infra) règle le problème ; ici on force un repli HLS si pas de média.
     pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
       ],
     });
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.addTransceiver('audio', { direction: 'recvonly' });
 
-    pc.ontrack = e => {
-      if (e.streams && e.streams[0]) {
-        video.srcObject = e.streams[0];
-        video.play().catch(() => {});
-        hideOverlay();
-        setLive(true, 'WebRTC');
-        setStatus('info', 'WebRTC actif — latence <1 s.');
-      }
-    };
+    let mediaDone = false;
+    const mediaWait = new Promise(function (resolve, reject) {
+      const ICE_MEDIA_MS = 22000;
+      const to = setTimeout(function () {
+        if (mediaDone) return;
+        mediaDone = true;
+        pc.removeEventListener('iceconnectionstatechange', onIceEarly);
+        reject(new Error('WebRTC: aucun média (timeout — UDP/ICE souvent bloqué sur 4G)'));
+      }, ICE_MEDIA_MS);
 
-    pc.oniceconnectionstatechange = () => {
-      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) {
-        setLive(false, null);
-        setStatus('error', 'Connexion WebRTC perdue.');
-        showOverlay('Connexion perdue…');
+      function cleanup() {
+        clearTimeout(to);
+        pc.removeEventListener('iceconnectionstatechange', onIceEarly);
       }
-    };
+
+      function onIceEarly() {
+        const s = pc.iceConnectionState;
+        if (s === 'failed' || s === 'closed') {
+          if (mediaDone) return;
+          mediaDone = true;
+          cleanup();
+          reject(new Error('WebRTC: ICE ' + s));
+        }
+      }
+      pc.addEventListener('iceconnectionstatechange', onIceEarly);
+
+      pc.ontrack = function (e) {
+        if (mediaDone || !(e.streams && e.streams[0])) return;
+        mediaDone = true;
+        cleanup();
+        video.srcObject = e.streams[0];
+        video.play().catch(function () {});
+        resolve();
+      };
+    });
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    await new Promise(resolve => {
+    await new Promise(function (resolve) {
       if (pc.iceGatheringState === 'complete') { resolve(); return; }
-      pc.addEventListener('icegatheringstatechange', function h() {
-        if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', h); resolve(); }
-      });
-      setTimeout(resolve, 2000);
+      function h() {
+        if (pc.iceGatheringState === 'complete') {
+          pc.removeEventListener('icegatheringstatechange', h);
+          resolve();
+        }
+      }
+      pc.addEventListener('icegatheringstatechange', h);
+      setTimeout(resolve, 4500);
     });
 
     const resp = await fetch(whepUrl, {
@@ -1374,6 +1398,20 @@
     });
     if (!resp.ok) throw new Error('WHEP ' + resp.status);
     await pc.setRemoteDescription({ type: 'answer', sdp: await resp.text() });
+
+    await mediaWait;
+
+    hideOverlay();
+    setLive(true, 'WebRTC');
+    setStatus('info', 'WebRTC actif — latence <1 s.');
+
+    pc.oniceconnectionstatechange = function () {
+      if (['disconnected', 'failed', 'closed'].includes(pc.iceConnectionState)) {
+        setLive(false, null);
+        setStatus('error', 'Connexion WebRTC perdue.');
+        showOverlay('Connexion perdue…');
+      }
+    };
   }
 
   // ── HLS ───────────────────────────────────────────────────────────────────

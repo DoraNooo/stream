@@ -18,10 +18,18 @@ hlsSegmentDuration: 2s
 
 # ── WebRTC ────────────────────────────────────────────────────────────────────
 webrtcAllowOrigins: ["*"]
-# IP publique du VPS — nécessaire pour les ICE candidates externes
-webrtcAdditionalHosts: [178.105.48.96]
-# Port UDP fixe pour ICE (exposé dans docker-compose + UFW)
+# IPs / noms joignables depuis Internet (ICE host). Ajoute le hostname HTTPS si utile.
+webrtcAdditionalHosts:
+  - 178.105.48.96
+  - stream.barium-saas.fr
+# ICE UDP (efficace) + ICE TCP (souvent indispensable sur 4G / Mi Browser quand l’UDP est filtré).
+# Ouvre 8189/udp ET 8189/tcp sur le pare-feu du VPS (voir docker-compose).
 webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+# STUN partagé serveur + clients (hole punching). Si encore bloqué → TURN (coturn), voir doc MediaMTX.
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
+  - url: stun:stun1.l.google.com:19302
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 paths:
