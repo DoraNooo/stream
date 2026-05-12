@@ -162,22 +162,32 @@
       display: none;
     }
 
-    /* Vignette (copie d’une zone du flux) — 21:9 / 16:9 seulement */
+    /* Vignettes (copie de zones du flux) — 21:9 / 16:9 seulement, collées aux bords */
     .pip-canvas {
       position: absolute;
-      bottom: 10px;
-      right: 10px;
       z-index: 8;
       max-width: min(240px, 30vw);
       max-height: min(38vh, 280px);
       width: auto;
       height: auto;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,.22);
-      box-shadow: 0 4px 20px rgba(0,0,0,.55);
+      border-radius: 0;
+      border: none;
+      box-shadow: none;
       pointer-events: none;
       display: none;
-      background: rgba(0,0,0,.35);
+      background: transparent;
+    }
+    .pip-canvas.pip-canvas--minimap {
+      bottom: 0;
+      right: 0;
+      top: auto;
+      left: auto;
+    }
+    .pip-canvas.pip-canvas--timer {
+      top: 0;
+      right: 0;
+      bottom: auto;
+      left: auto;
     }
     .pip-canvas.pip-canvas-visible { display: block; }
 
@@ -432,23 +442,48 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: .65rem 1rem .75rem;
+      padding: .55rem 1rem .65rem;
     }
-    .pip-panel-head { margin-bottom: .45rem; }
+    .pip-panel-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+    }
     .pip-panel-title {
       font-size: .73rem;
       font-weight: 600;
       letter-spacing: .04em;
       text-transform: uppercase;
       color: var(--muted);
-      display: block;
     }
-    .pip-panel-hint {
-      font-size: .68rem;
+    .btn-pip-settings {
+      flex-shrink: 0;
+      padding: .28rem .65rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
       color: var(--muted);
-      opacity: .85;
-      display: block;
-      margin-top: .15rem;
+      font-size: .72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .btn-pip-settings:hover {
+      background: #1e2230;
+      color: var(--text);
+    }
+    .pip-panel-settings { margin-top: .55rem; }
+    .pip-panel-settings.pip-panel-settings-hidden { display: none; }
+    .pip-fieldset { margin-top: .55rem; }
+    .pip-fieldset:first-child { margin-top: 0; }
+    .pip-fieldset-title {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .35rem;
     }
     .pip-inputs {
       display: flex;
@@ -501,7 +536,8 @@
       <!-- Pas de controls natifs : on gère son + fullscreen en custom -->
       <video id="v" class="crop-media" playsinline autoplay></video>
       <img id="streamPlaceholder" class="crop-media" src="placeholder-ultrawide.png" alt="" decoding="async" width="2560" height="720" />
-      <canvas id="pipCanvas" class="pip-canvas" width="2" height="2" aria-hidden="true"></canvas>
+      <canvas id="pipCanvasMinimap" class="pip-canvas pip-canvas--minimap" width="2" height="2" aria-hidden="true"></canvas>
+      <canvas id="pipCanvasTimer" class="pip-canvas pip-canvas--timer" width="2" height="2" aria-hidden="true"></canvas>
     </div>
 
     <div class="player-overlay hidden" id="overlay">
@@ -573,15 +609,29 @@
   </div>
 
   <div class="pip-panel" id="pipPanel">
-    <div class="pip-panel-head">
-      <span class="pip-panel-title">Vignette (minimap)</span>
-      <span class="pip-panel-hint">Coordonnées en pixels dans le flux · affichée en bas à droite en 21:9 et 16:9</span>
+    <div class="pip-panel-toolbar">
+      <span class="pip-panel-title">Vignettes (minimap · timer)</span>
+      <button type="button" class="btn-pip-settings" id="btnPipSettings" aria-expanded="false" aria-controls="pipPanelSettings">Paramètres</button>
     </div>
-    <div class="pip-inputs">
-      <label>Sup gauche X <input id="pipTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
-      <label>Y <input id="pipTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
-      <label>Inf droite X <input id="pipBRx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
-      <label>Y <input id="pipBRy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
+    <div class="pip-panel-settings pip-panel-settings-hidden" id="pipPanelSettings">
+      <div class="pip-fieldset">
+        <div class="pip-fieldset-title">Minimap — bas droite (px flux)</div>
+        <div class="pip-inputs">
+          <label>Sup gauche X <input id="pipTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+          <label>Y <input id="pipTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+          <label>Inf droite X <input id="pipBRx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+          <label>Y <input id="pipBRy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+        </div>
+      </div>
+      <div class="pip-fieldset">
+        <div class="pip-fieldset-title">Timer — haut droite (px flux)</div>
+        <div class="pip-inputs">
+          <label>Sup gauche X <input id="pipTimerTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+          <label>Y <input id="pipTimerTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+          <label>Inf droite X <input id="pipTimerBRx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+          <label>Y <input id="pipTimerBRy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" /></label>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -711,14 +761,25 @@
     applyCropFromButton(btn);
   });
 
-  // ── Vignette (copie d’une zone du flux → canvas, 21:9 / 16:9) ──────────────
-  const pipCanvas = document.getElementById('pipCanvas');
-  const pipCtx = pipCanvas.getContext('2d');
+  // ── Vignettes (minimap + timer, 21:9 / 16:9) ────────────────────────────────
+  const pipCanvasMinimap = document.getElementById('pipCanvasMinimap');
+  const pipCanvasTimer   = document.getElementById('pipCanvasTimer');
+  const pipCtxM = pipCanvasMinimap.getContext('2d');
+  const pipCtxT = pipCanvasTimer.getContext('2d');
   const pipTLx = document.getElementById('pipTLx');
   const pipTLy = document.getElementById('pipTLy');
   const pipBRx = document.getElementById('pipBRx');
   const pipBRy = document.getElementById('pipBRy');
-  const LS_PIP = 'streamPipRect';
+  const pipTimerTLx = document.getElementById('pipTimerTLx');
+  const pipTimerTLy = document.getElementById('pipTimerTLy');
+  const pipTimerBRx = document.getElementById('pipTimerBRx');
+  const pipTimerBRy = document.getElementById('pipTimerBRy');
+  const pipPanelSettings = document.getElementById('pipPanelSettings');
+  const btnPipSettings = document.getElementById('btnPipSettings');
+
+  const PIP_LS_KEY = 'streamPipRect_v2';
+  const PIP_LS_LEGACY = 'streamPipRect';
+  const PIP_DEFAULT_MINIMAP = { tlx: '3500', tly: '552', brx: '4096', bry: '1152' };
 
   function pipParseInt(el) {
     const n = parseInt(String(el.value || '').trim(), 10);
@@ -727,14 +788,14 @@
   function pipCropModeActive() {
     return playerOuter.classList.contains('crop-fix-21') || playerOuter.classList.contains('crop-fix-16');
   }
-  function normalizedPipSourceRect() {
+  function normalizedPipRectFromEls(tlxEl, tlyEl, brxEl, bryEl) {
     const vw = video.videoWidth | 0;
     const vh = video.videoHeight | 0;
     if (vw < 16 || vh < 16) return null;
-    const x1 = pipParseInt(pipTLx);
-    const y1 = pipParseInt(pipTLy);
-    const x2 = pipParseInt(pipBRx);
-    const y2 = pipParseInt(pipBRy);
+    const x1 = pipParseInt(tlxEl);
+    const y1 = pipParseInt(tlyEl);
+    const x2 = pipParseInt(brxEl);
+    const y2 = pipParseInt(bryEl);
     if ([x1, y1, x2, y2].some(Number.isNaN)) return null;
     let sx = Math.min(x1, x2);
     let sy = Math.min(y1, y2);
@@ -749,25 +810,58 @@
     if (sw < 8 || sh < 8) return null;
     return { sx, sy, sw, sh };
   }
+  function normalizedPipMinimapRect() {
+    return normalizedPipRectFromEls(pipTLx, pipTLy, pipBRx, pipBRy);
+  }
+  function normalizedPipTimerRect() {
+    return normalizedPipRectFromEls(pipTimerTLx, pipTimerTLy, pipTimerBRx, pipTimerBRy);
+  }
+
   function savePipToLs() {
     try {
-      localStorage.setItem(LS_PIP, JSON.stringify({
-        tlx: pipTLx.value,
-        tly: pipTLy.value,
-        brx: pipBRx.value,
-        bry: pipBRy.value,
+      localStorage.setItem(PIP_LS_KEY, JSON.stringify({
+        minimap: { tlx: pipTLx.value, tly: pipTLy.value, brx: pipBRx.value, bry: pipBRy.value },
+        timer:   { tlx: pipTimerTLx.value, tly: pipTimerTLy.value, brx: pipTimerBRx.value, bry: pipTimerBRy.value },
       }));
     } catch (e) { /* ignore */ }
   }
+
+  function applyPipBlock(target, src) {
+    if (!src || typeof src !== 'object') return;
+    if (src.tlx != null) target.tlx.value = String(src.tlx);
+    if (src.tly != null) target.tly.value = String(src.tly);
+    if (src.brx != null) target.brx.value = String(src.brx);
+    if (src.bry != null) target.bry.value = String(src.bry);
+  }
+
   function loadPipFromLs() {
+    const m = { tlx: pipTLx, tly: pipTLy, brx: pipBRx, bry: pipBRy };
+    const t = { tlx: pipTimerTLx, tly: pipTimerTLy, brx: pipTimerBRx, bry: pipTimerBRy };
     try {
-      const j = JSON.parse(localStorage.getItem(LS_PIP) || 'null');
-      if (!j || typeof j !== 'object') return;
-      if (j.tlx != null) pipTLx.value = String(j.tlx);
-      if (j.tly != null) pipTLy.value = String(j.tly);
-      if (j.brx != null) pipBRx.value = String(j.brx);
-      if (j.bry != null) pipBRy.value = String(j.bry);
+      const rawV2 = localStorage.getItem(PIP_LS_KEY);
+      if (rawV2) {
+        const j = JSON.parse(rawV2);
+        if (j.minimap) applyPipBlock(m, j.minimap);
+        if (!pipTLx.value.trim()) applyPipBlock(m, PIP_DEFAULT_MINIMAP);
+        if (j.timer) applyPipBlock(t, j.timer);
+        return;
+      }
+      const rawLegacy = localStorage.getItem(PIP_LS_LEGACY);
+      if (rawLegacy) {
+        const j = JSON.parse(rawLegacy);
+        if (j && j.minimap) {
+          applyPipBlock(m, j.minimap);
+          if (j.timer) applyPipBlock(t, j.timer);
+        } else if (j && typeof j === 'object') {
+          applyPipBlock(m, j);
+        } else {
+          applyPipBlock(m, PIP_DEFAULT_MINIMAP);
+        }
+        if (!pipTLx.value.trim()) applyPipBlock(m, PIP_DEFAULT_MINIMAP);
+        return;
+      }
     } catch (e) { /* ignore */ }
+    applyPipBlock(m, PIP_DEFAULT_MINIMAP);
   }
 
   let pipLoopWanted = false;
@@ -807,69 +901,89 @@
     }
   }
 
-  function tickPip() {
-    if (!pipLoopWanted) return;
-    if (!playerOuter.classList.contains('has-stream')) {
-      pipCanvas.classList.remove('pip-canvas-visible');
-      return;
-    }
-    if (!pipCropModeActive()) {
-      pipCanvas.classList.remove('pip-canvas-visible');
-      return;
-    }
-    if (video.readyState < 2) {
-      pipCanvas.classList.remove('pip-canvas-visible');
-      return;
-    }
-    const r = normalizedPipSourceRect();
+  function drawPipCanvas(canvas, ctx, r) {
     if (!r) {
-      pipCanvas.classList.remove('pip-canvas-visible');
+      canvas.classList.remove('pip-canvas-visible');
       return;
     }
-    const wrap = pipCanvas.parentElement;
+    const wrap = canvas.parentElement;
     if (!wrap) return;
     const maxCssW = Math.min(240, Math.max(80, wrap.clientWidth * 0.28));
     const scale = maxCssW / r.sw;
     const outW = Math.max(48, Math.round(r.sw * scale));
     const outH = Math.max(48, Math.round(r.sh * scale));
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    pipCanvas.style.width = outW + 'px';
-    pipCanvas.style.height = outH + 'px';
+    canvas.style.width = outW + 'px';
+    canvas.style.height = outH + 'px';
     const bw = Math.max(1, Math.round(outW * dpr));
     const bh = Math.max(1, Math.round(outH * dpr));
-    if (pipCanvas.width !== bw || pipCanvas.height !== bh) {
-      pipCanvas.width = bw;
-      pipCanvas.height = bh;
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
     }
-    pipCtx.setTransform(1, 0, 0, 1, 0, 0);
-    pipCtx.clearRect(0, 0, bw, bh);
-    pipCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, bw, bh);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     try {
-      pipCtx.drawImage(video, r.sx, r.sy, r.sw, r.sh, 0, 0, outW, outH);
+      ctx.drawImage(video, r.sx, r.sy, r.sw, r.sh, 0, 0, outW, outH);
     } catch (e) {
-      pipCanvas.classList.remove('pip-canvas-visible');
+      canvas.classList.remove('pip-canvas-visible');
       return;
     }
-    pipCtx.setTransform(1, 0, 0, 1, 0, 0);
-    pipCanvas.classList.add('pip-canvas-visible');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    canvas.classList.add('pip-canvas-visible');
+  }
+
+  function tickPip() {
+    if (!pipLoopWanted) return;
+    if (!playerOuter.classList.contains('has-stream')) {
+      pipCanvasMinimap.classList.remove('pip-canvas-visible');
+      pipCanvasTimer.classList.remove('pip-canvas-visible');
+      return;
+    }
+    if (!pipCropModeActive()) {
+      pipCanvasMinimap.classList.remove('pip-canvas-visible');
+      pipCanvasTimer.classList.remove('pip-canvas-visible');
+      return;
+    }
+    if (video.readyState < 2) {
+      pipCanvasMinimap.classList.remove('pip-canvas-visible');
+      pipCanvasTimer.classList.remove('pip-canvas-visible');
+      return;
+    }
+    drawPipCanvas(pipCanvasMinimap, pipCtxM, normalizedPipMinimapRect());
+    drawPipCanvas(pipCanvasTimer, pipCtxT, normalizedPipTimerRect());
   }
 
   function syncPipLoop() {
     stopPipLoop();
-    pipCanvas.classList.remove('pip-canvas-visible');
+    pipCanvasMinimap.classList.remove('pip-canvas-visible');
+    pipCanvasTimer.classList.remove('pip-canvas-visible');
     if (!playerOuter.classList.contains('has-stream')) return;
     if (!pipCropModeActive()) return;
-    if (!normalizedPipSourceRect()) return;
+    if (!normalizedPipMinimapRect() && !normalizedPipTimerRect()) return;
     startPipLoop();
   }
 
-  [pipTLx, pipTLy, pipBRx, pipBRy].forEach(el => {
+  const pipAllInputs = [
+    pipTLx, pipTLy, pipBRx, pipBRy,
+    pipTimerTLx, pipTimerTLy, pipTimerBRx, pipTimerBRy,
+  ];
+  pipAllInputs.forEach(el => {
     el.addEventListener('input', () => { savePipToLs(); syncPipLoop(); });
     el.addEventListener('change', () => { savePipToLs(); syncPipLoop(); });
   });
   video.addEventListener('loadeddata', syncPipLoop);
   video.addEventListener('emptied', syncPipLoop);
   window.addEventListener('resize', () => { if (pipLoopWanted) tickPip(); });
+
+  btnPipSettings.addEventListener('click', () => {
+    pipPanelSettings.classList.toggle('pip-panel-settings-hidden');
+    const expanded = !pipPanelSettings.classList.contains('pip-panel-settings-hidden');
+    btnPipSettings.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    updateChromeH();
+  });
+
   loadPipFromLs();
 
   const modeBar = document.getElementById('modeBar');
