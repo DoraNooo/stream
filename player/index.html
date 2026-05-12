@@ -227,7 +227,7 @@
       height: var(--player-max-h);
     }
 
-    /* Barre format en overlay (plein écran + survol lecteur) */
+    /* Barre format en overlay (classe player-ui-visible ; en plein écran → position fixed) */
     .fs-crop-bar {
       position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
       display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; justify-content: center;
@@ -242,6 +242,17 @@
     .player-outer.player-ui-visible .fs-crop-bar {
       opacity: 1;
       pointer-events: auto;
+    }
+    /* Plein écran : fixed + z-index élevé pour rester au-dessus de la couche vidéo
+       (surtout 32:9 sur moniteur ultra-large où le média remplit tout l’écran). */
+    .player-outer:fullscreen .fs-crop-bar,
+    .player-outer:-webkit-full-screen .fs-crop-bar {
+      position: fixed;
+      top: max(12px, env(safe-area-inset-top, 0px));
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      z-index: 2147483646;
     }
     .fs-crop-bar .crop-label { margin-right: .15rem; }
     .fs-crop-bar .crop-btn { font-size: .72rem; padding: .22rem .5rem; }
@@ -263,6 +274,15 @@
     .player-outer.player-ui-visible .ctrl-bar {
       opacity: 1;
       pointer-events: auto;
+    }
+    .player-outer:fullscreen .ctrl-bar,
+    .player-outer:-webkit-full-screen .ctrl-bar {
+      position: fixed;
+      bottom: max(14px, env(safe-area-inset-bottom, 0px));
+      right: max(14px, env(safe-area-inset-right, 0px));
+      left: auto;
+      top: auto;
+      z-index: 2147483645;
     }
 
     .ctrl-btn, .btn-fs {
@@ -543,6 +563,7 @@
   }
 
   document.addEventListener('mousemove', onGlobalPointerActivity, { passive: true });
+  document.addEventListener('pointermove', onGlobalPointerActivity, { passive: true });
   document.addEventListener('touchstart', onGlobalPointerActivity, { passive: true });
   playerOuter.addEventListener('mouseleave', () => {
     if (getFullscreenElement() !== playerOuter) hidePlayerChrome();
@@ -687,8 +708,11 @@
   });
 
   function onFullscreenTransition() {
-    hidePlayerChrome();
     syncFsIcon();
+    if (getFullscreenElement() === playerOuter) {
+      bumpPlayerUiChrome();
+      requestAnimationFrame(() => bumpPlayerUiChrome());
+    } else hidePlayerChrome();
   }
   document.addEventListener('fullscreenchange', onFullscreenTransition);
   document.addEventListener('webkitfullscreenchange', onFullscreenTransition);
