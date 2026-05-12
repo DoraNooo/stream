@@ -90,27 +90,53 @@
       overflow: hidden;
     }
 
-    .crop-wrapper .crop-media {
+    /* 21:9 & 16:9 — crop latéral : média plus large que le cadre, centré */
+    .player-outer.crop-fix-21 .crop-wrapper .crop-media,
+    .player-outer.crop-fix-16 .crop-wrapper .crop-media {
       position: absolute;
       top: 0;
       left: 50%;
       transform: translateX(-50%);
       height: 100%;
       width: auto;
-      /* Ratio de secours (ultrawide ~32:9) avant métadonnées vidéo */
       aspect-ratio: 32/9;
       display: block;
       background: #000;
+      object-fit: unset;
+    }
+    /* 32:9 — tout le flux visible dans le cadre (bandes possibles si ratio ≠) */
+    .player-outer.crop-fix-32 .crop-wrapper .crop-media {
+      position: absolute;
+      inset: 0;
+      left: 0;
+      top: 0;
+      transform: none;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: unset;
+      display: block;
+      background: #000;
+      object-fit: contain;
+      object-position: center;
+    }
+    /* Auto — remplit la zone dispo, pas de bandes (crop si besoin), pas d’étirement */
+    .player-outer.crop-auto .crop-wrapper .crop-media {
+      position: absolute;
+      inset: 0;
+      left: 0;
+      top: 0;
+      transform: none;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: unset;
+      display: block;
+      background: #000;
+      object-fit: cover;
+      object-position: center;
     }
     .crop-wrapper #streamPlaceholder {
-      object-fit: cover;
       pointer-events: none;
       user-select: none;
-    }
-    .player-outer.crop-auto .crop-wrapper #streamPlaceholder,
-    .player-outer:fullscreen.crop-auto .crop-wrapper #streamPlaceholder,
-    .player-outer:-webkit-full-screen.crop-auto .crop-wrapper #streamPlaceholder {
-      object-fit: contain;
     }
     .player-outer.has-stream .crop-wrapper #streamPlaceholder {
       display: none;
@@ -135,12 +161,30 @@
       max-width: 100vw; max-height: 100vh;
       overflow: hidden;
     }
-    .player-outer:fullscreen:not(.crop-auto) .crop-wrapper .crop-media,
-    .player-outer:-webkit-full-screen:not(.crop-auto) .crop-wrapper .crop-media {
+    .player-outer:fullscreen.crop-fix-21:not(.crop-auto) .crop-wrapper .crop-media,
+    .player-outer:fullscreen.crop-fix-16:not(.crop-auto) .crop-wrapper .crop-media,
+    .player-outer:-webkit-full-screen.crop-fix-21:not(.crop-auto) .crop-wrapper .crop-media,
+    .player-outer:-webkit-full-screen.crop-fix-16:not(.crop-auto) .crop-wrapper .crop-media {
       height: 100%; width: auto;
       left: 50%; transform: translateX(-50%);
+      inset: auto;
+      top: 0;
+      aspect-ratio: 32/9;
+      object-fit: unset;
     }
-    /* Plein écran + Auto : tout le cadre visible (letterbox / pillarbox) */
+    .player-outer:fullscreen.crop-fix-32:not(.crop-auto) .crop-wrapper .crop-media,
+    .player-outer:-webkit-full-screen.crop-fix-32:not(.crop-auto) .crop-wrapper .crop-media {
+      inset: 0;
+      left: 0;
+      top: 0;
+      transform: none;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: unset;
+      object-fit: contain;
+      object-position: center;
+    }
+    /* Plein écran + Auto : tout l’écran, cover (pas de bandes) */
     .player-outer:fullscreen.crop-auto .crop-wrapper,
     .player-outer:-webkit-full-screen.crop-auto .crop-wrapper {
       width: 100vw !important; height: 100vh !important;
@@ -152,19 +196,15 @@
     .player-outer:-webkit-full-screen.crop-auto .crop-wrapper .crop-media {
       inset: 0; left: 0; transform: none;
       width: 100%; height: 100%;
-      object-fit: contain;
+      object-fit: cover;
+      object-position: center;
     }
 
-    /* Mode Auto (hors plein écran) : cadre 32:9 max, image entière contenue */
+    /* Auto (hors plein écran) : rectangle dispo max, cover */
     .player-outer.crop-auto {
       aspect-ratio: auto;
       width: min(98vw, 130rem);
-      height: min(var(--player-max-h), calc(min(98vw, 130rem) * 9 / 32));
-    }
-    .player-outer.crop-auto .crop-wrapper .crop-media {
-      inset: 0; left: 0; transform: none;
-      width: 100%; height: 100%;
-      object-fit: contain;
+      height: var(--player-max-h);
     }
 
     /* Barre format en overlay (plein écran + survol lecteur) */
@@ -322,7 +362,7 @@
 </header>
 
 <main>
-  <div class="player-outer" id="playerOuter">
+  <div class="player-outer crop-fix-32" id="playerOuter">
     <div class="crop-wrapper">
       <!-- Pas de controls natifs : on gère son + fullscreen en custom -->
       <video id="v" class="crop-media" playsinline autoplay></video>
@@ -363,7 +403,7 @@
       <button type="button" class="crop-btn active" data-w="32" data-h="9">32:9</button>
       <button type="button" class="crop-btn" data-w="21" data-h="9">21:9</button>
       <button type="button" class="crop-btn" data-w="16" data-h="9">16:9</button>
-      <button type="button" class="crop-btn" data-crop="auto" title="Image entière (letterbox)">Auto</button>
+      <button type="button" class="crop-btn" data-crop="auto" title="Remplit l’écran sans bandes (crop)">Auto</button>
     </div>
   </div>
 
@@ -388,7 +428,7 @@
       <svg class="crop-icon" width="16" height="9" viewBox="0 0 16 9"><rect width="16" height="9" fill="none" stroke="currentColor" stroke-width="1.5" rx="1"/></svg>
       16:9
     </button>
-    <button type="button" class="crop-btn" data-crop="auto" title="Image entière sans recadrage (letterbox)">
+    <button type="button" class="crop-btn" data-crop="auto" title="Remplit l’écran sans bandes (crop)">
       <svg class="crop-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
       Auto
     </button>
@@ -471,11 +511,14 @@
   }
   function applyCropFromButton(btn) {
     if (!btn) return;
+    playerOuter.classList.remove('crop-auto', 'crop-fix-32', 'crop-fix-21', 'crop-fix-16');
     if (btn.dataset.crop === 'auto') {
       playerOuter.classList.add('crop-auto');
     } else {
-      playerOuter.classList.remove('crop-auto');
       root.style.setProperty('--crop-ar', `${btn.dataset.w}/${btn.dataset.h}`);
+      if (btn.dataset.w === '32') playerOuter.classList.add('crop-fix-32');
+      else if (btn.dataset.w === '21') playerOuter.classList.add('crop-fix-21');
+      else if (btn.dataset.w === '16') playerOuter.classList.add('crop-fix-16');
     }
     syncCropActive(btn);
     updateChromeH();
