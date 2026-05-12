@@ -331,8 +331,24 @@
     .crop-btn.active { background:rgba(108,99,255,.18); border-color:var(--accent); color:#c0bbff; box-shadow:0 0 0 2px var(--accent-glow); }
     .crop-icon { display:inline-block; border:1.5px solid currentColor; border-radius:2px; opacity:.8; flex-shrink:0; }
 
+    .mode-sep { flex: 1; min-width: 6px; max-width: 20px; }
     /* ── Mode toggle (Latence / Qualité) ── */
     .mode-group { display:flex; align-items:center; gap:.3rem; }
+    .scale-group { display:flex; align-items:center; gap:.28rem; flex-wrap:wrap; }
+    .scale-btn {
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width: 2.4rem;
+      padding:.24rem .45rem; border-radius:6px;
+      border:1px solid var(--border); background:var(--surface2);
+      color:var(--muted); font-size:.72rem; font-weight:600; cursor:pointer;
+      transition:background .15s,color .15s,border-color .15s,box-shadow .15s;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .scale-btn:hover:not(:disabled) { background:#1e2230; color:var(--text); }
+    .scale-btn.active { background:rgba(108,99,255,.14); border-color:var(--accent); color:#c0bbff; box-shadow:0 0 0 2px var(--accent-glow); }
+    .scale-btn:disabled { opacity:.35; cursor:not-allowed; }
+    .mode-bar.scale-locked .scale-group { opacity:.42; pointer-events:none; }
     .mode-group-label { font-size:.7rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); margin-right:.2rem; }
     .mode-btn {
       display:inline-flex; align-items:center; gap:.3rem;
@@ -441,7 +457,7 @@
     </svg>
   </div>
 
-  <div class="mode-bar">
+  <div class="mode-bar" id="modeBar">
     <div class="mode-group">
       <span class="mode-group-label">Mode</span>
       <button type="button" class="mode-btn active-latency" id="btnModeLow" title="WebRTC — latence &lt;1 s, B-frames désactivés">
@@ -452,6 +468,14 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         Qualité
       </button>
+    </div>
+    <div class="mode-sep" aria-hidden="true"></div>
+    <div class="scale-group" id="scaleGroup" title="Réduit résolution et charge réseau (transcodage VPS, mode Latence uniquement)">
+      <span class="mode-group-label">Flux</span>
+      <button type="button" class="scale-btn active" data-scale="100">100 %</button>
+      <button type="button" class="scale-btn" data-scale="90">90 %</button>
+      <button type="button" class="scale-btn" data-scale="80">80 %</button>
+      <button type="button" class="scale-btn" data-scale="70">70 %</button>
     </div>
   </div>
 
@@ -488,6 +512,8 @@
   let hlsInstance = null;
   let pc = null;
   let forceHLS = false; // true = mode Qualité
+  /** 100 = natif ll- ; 90/80/70 = llsq* (transcodage serveur, WebRTC seulement) */
+  let resolutionPct = 100;
 
   // ── Chrome height dynamique ────────────────────────────────────────────────
   function updateChromeH() {
@@ -540,8 +566,9 @@
     applyCropFromButton(btn);
   });
 
-  document.querySelector('.mode-bar').addEventListener('mousedown', e => {
-    if (e.target.closest('.mode-btn')) e.preventDefault();
+  const modeBar = document.getElementById('modeBar');
+  modeBar.addEventListener('mousedown', e => {
+    if (e.target.closest('.mode-btn') || e.target.closest('.scale-btn')) e.preventDefault();
   });
 
   // ── Drag resize ───────────────────────────────────────────────────────────
@@ -635,13 +662,24 @@
     if (k.startsWith('live/'))    k = k.slice('live/'.length);
     if (k.startsWith('hqc-')) k = k.slice('hqc-'.length);
     else if (k.startsWith('ll-') || k.startsWith('hq-')) k = k.slice(3);
+    else if (/^llsq(90|80|70)-/i.test(k)) k = k.replace(/^llsq(90|80|70)-/i, '');
     return k.trim();
   }
   function resolvePathKey(input) {
     const base = normalizeBaseKey(input);
     if (!base) return '';
     // Qualité : HLS lit le relais remuxé live/hqc-<base> (voir deploy/mediamtx.yml).
-    return (forceHLS ? 'hqc-' : 'll-') + base;
+    if (forceHLS) return 'hqc-' + base;
+    // Latence : 100 % = flux natif ; 90/80/70 % = transcoding on-demand (voir deploy/mediamtx.yml).
+    if (resolutionPct === 100) return 'll-' + base;
+    return 'llsq' + resolutionPct + '-' + base;
+  }
+
+  function syncScaleUi() {
+    document.querySelectorAll('.scale-btn').forEach(b => {
+      const n = parseInt(b.dataset.scale, 10);
+      b.classList.toggle('active', n === resolutionPct);
+    });
   }
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -723,12 +761,18 @@
   // ── Entrée principale ─────────────────────────────────────────────────────
   async function play(key) {
     stopAll(); setStatus('');
+    const base = normalizeBaseKey(keyInput.value);
+    const hlsLatencyFallbackKey = 'll-' + base;
     if (forceHLS) {
       showOverlay('Chargement HLS Qualité…');
       playHLS(key, true);
       return;
     }
-    showOverlay('Connexion WebRTC…');
+    showOverlay(
+      resolutionPct < 100
+        ? 'Connexion WebRTC (transcodage ' + resolutionPct + ' % source)…'
+        : 'Connexion WebRTC…'
+    );
     try {
       await playWebRTC(key);
     } catch (err) {
@@ -736,7 +780,7 @@
       setStatus('info', 'WebRTC indisponible — bascule HLS (~2 s).');
       showOverlay('Bascule HLS…');
       if (pc) { pc.close(); pc = null; }
-      playHLS(key, false);
+      playHLS(hlsLatencyFallbackKey, false);
     }
   }
 
@@ -748,6 +792,7 @@
     forceHLS = hq;
     btnModeLow.className = 'mode-btn' + (hq ? '' : ' active-latency');
     btnModeHQ.className  = 'mode-btn' + (hq ? ' active-quality' : '');
+    modeBar.classList.toggle('scale-locked', hq);
     updateUrl();
     // Si un stream est en cours, relancer avec le nouveau mode
     const k = resolvePathKey(keyInput.value);
@@ -757,12 +802,26 @@
   btnModeLow.addEventListener('click', () => setMode(false));
   btnModeHQ.addEventListener('click',  () => setMode(true));
 
+  modeBar.addEventListener('click', e => {
+    const sb = e.target.closest('.scale-btn');
+    if (!sb || forceHLS) return;
+    const p = parseInt(sb.dataset.scale, 10);
+    if (![100, 90, 80, 70].includes(p) || p === resolutionPct) return;
+    resolutionPct = p;
+    syncScaleUi();
+    updateUrl();
+    const k = resolvePathKey(keyInput.value);
+    if (k && (hlsInstance || pc)) play(k);
+  });
+
   function updateUrl() {
     const k = normalizeBaseKey(keyInput.value);
     const params = new URLSearchParams();
     if (k) params.set('key', k);
     if (forceHLS) params.set('mode', 'quality');
-    history.replaceState(null, '', '?' + params.toString());
+    else if (resolutionPct !== 100) params.set('scale', String(resolutionPct));
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? '?' + qs : location.pathname);
   }
 
   document.getElementById('go').addEventListener('click', () => {
@@ -780,6 +839,11 @@
   const qp = new URLSearchParams(location.search);
   const q  = qp.get('key');
   const qm = qp.get('mode');
+  const qs = qp.get('scale');
+  if (qs === '90' || qs === '80' || qs === '70') {
+    resolutionPct = parseInt(qs, 10);
+    syncScaleUi();
+  }
   if (qm === 'quality') setMode(true);
   if (q) { keyInput.value = normalizeBaseKey(q); play(resolvePathKey(q)); }
   else { hideOverlay(); }
