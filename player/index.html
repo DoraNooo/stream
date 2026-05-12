@@ -1330,7 +1330,13 @@
   // ── WebRTC / WHEP ─────────────────────────────────────────────────────────
   async function playWebRTC(key) {
     const whepUrl = '/webrtc/live/' + encodeURIComponent(key) + '/whep';
-    pc = new RTCPeerConnection({ iceServers: [] });
+    // STUN publics : sans ICE, WebRTC échoue souvent sur Android (4G / NAT opérateur).
+    pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+      ],
+    });
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.addTransceiver('audio', { direction: 'recvonly' });
 
