@@ -162,6 +162,25 @@
       display: none;
     }
 
+    /* Vignette (copie d’une zone du flux) — 21:9 / 16:9 seulement */
+    .pip-canvas {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 8;
+      max-width: min(240px, 30vw);
+      max-height: min(38vh, 280px);
+      width: auto;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow: 0 4px 20px rgba(0,0,0,.55);
+      pointer-events: none;
+      display: none;
+      background: rgba(0,0,0,.35);
+    }
+    .pip-canvas.pip-canvas-visible { display: block; }
+
     /* ── Fullscreen ─────────────────────────────────────────────────────────
        player-outer remplit l'écran ; crop-wrapper prend le ratio choisi
        et se centre avec letterbox/pillarbox si l'écran a un autre ratio.
@@ -406,6 +425,56 @@
     .btn-primary:hover { background:#7b73ff; box-shadow:0 3px 16px rgba(108,99,255,.5); transform:translateY(-1px); }
     .btn-primary:active { transform:translateY(0); }
 
+    /* ── Vignette (coords source) ── */
+    .pip-panel {
+      flex-shrink: 0;
+      width: min(98vw, 130rem);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: .65rem 1rem .75rem;
+    }
+    .pip-panel-head { margin-bottom: .45rem; }
+    .pip-panel-title {
+      font-size: .73rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+    }
+    .pip-panel-hint {
+      font-size: .68rem;
+      color: var(--muted);
+      opacity: .85;
+      display: block;
+      margin-top: .15rem;
+    }
+    .pip-inputs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .45rem .65rem;
+    }
+    .pip-inputs label {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: .72rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .pip-inputs input[type="text"] {
+      width: 4.5rem;
+      flex: 0 0 auto;
+      padding: .35rem .45rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: .8rem;
+    }
+
     /* ── Status bar ── */
     .status-bar { flex-shrink:0; width:min(98vw,130rem); font-size:.78rem; display:flex; align-items:center; gap:.45rem; padding:.45rem .8rem; border-radius:7px; border:1px solid transparent; transition:opacity .25s; }
     .status-bar.hidden { opacity:0; pointer-events:none; height:0; padding:0; overflow:hidden; border:none; }
@@ -432,6 +501,7 @@
       <!-- Pas de controls natifs : on gère son + fullscreen en custom -->
       <video id="v" class="crop-media" playsinline autoplay></video>
       <img id="streamPlaceholder" class="crop-media" src="placeholder-ultrawide.png" alt="" decoding="async" width="2560" height="720" />
+      <canvas id="pipCanvas" class="pip-canvas" width="2" height="2" aria-hidden="true"></canvas>
     </div>
 
     <div class="player-overlay hidden" id="overlay">
@@ -499,6 +569,19 @@
       <button type="button" class="scale-btn" data-scale="90">90 %</button>
       <button type="button" class="scale-btn" data-scale="80">80 %</button>
       <button type="button" class="scale-btn" data-scale="70">70 %</button>
+    </div>
+  </div>
+
+  <div class="pip-panel" id="pipPanel">
+    <div class="pip-panel-head">
+      <span class="pip-panel-title">Vignette (minimap)</span>
+      <span class="pip-panel-hint">Coordonnées en pixels dans le flux · affichée en bas à droite en 21:9 et 16:9</span>
+    </div>
+    <div class="pip-inputs">
+      <label>Sup gauche X <input id="pipTLx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
+      <label>Y <input id="pipTLy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
+      <label>Inf droite X <input id="pipBRx" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
+      <label>Y <input id="pipBRy" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="0" /></label>
     </div>
   </div>
 
@@ -577,7 +660,7 @@
 
   // ── Chrome height dynamique ────────────────────────────────────────────────
   function updateChromeH() {
-    const els = ['header', '.drag-handle', '.mode-bar', '.panel', 'footer'];
+    const els = ['header', '.drag-handle', '.mode-bar', '.pip-panel', '.panel', 'footer'];
     const chromeH = els.reduce((h, sel) => {
       const el = document.querySelector(sel);
       return h + (el ? el.offsetHeight : 0);
@@ -615,6 +698,7 @@
     }
     syncCropActive(btn);
     updateChromeH();
+    syncPipLoop();
   }
   const fsCropBar = document.getElementById('fsCropBar');
   fsCropBar.addEventListener('mousedown', e => {
@@ -626,6 +710,167 @@
     if (!btn) return;
     applyCropFromButton(btn);
   });
+
+  // ── Vignette (copie d’une zone du flux → canvas, 21:9 / 16:9) ──────────────
+  const pipCanvas = document.getElementById('pipCanvas');
+  const pipCtx = pipCanvas.getContext('2d');
+  const pipTLx = document.getElementById('pipTLx');
+  const pipTLy = document.getElementById('pipTLy');
+  const pipBRx = document.getElementById('pipBRx');
+  const pipBRy = document.getElementById('pipBRy');
+  const LS_PIP = 'streamPipRect';
+
+  function pipParseInt(el) {
+    const n = parseInt(String(el.value || '').trim(), 10);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function pipCropModeActive() {
+    return playerOuter.classList.contains('crop-fix-21') || playerOuter.classList.contains('crop-fix-16');
+  }
+  function normalizedPipSourceRect() {
+    const vw = video.videoWidth | 0;
+    const vh = video.videoHeight | 0;
+    if (vw < 16 || vh < 16) return null;
+    const x1 = pipParseInt(pipTLx);
+    const y1 = pipParseInt(pipTLy);
+    const x2 = pipParseInt(pipBRx);
+    const y2 = pipParseInt(pipBRy);
+    if ([x1, y1, x2, y2].some(Number.isNaN)) return null;
+    let sx = Math.min(x1, x2);
+    let sy = Math.min(y1, y2);
+    let sw = Math.abs(x2 - x1);
+    let sh = Math.abs(y2 - y1);
+    if (sw < 8 || sh < 8) return null;
+    if (sx >= vw || sy >= vh) return null;
+    sx = Math.max(0, sx);
+    sy = Math.max(0, sy);
+    sw = Math.min(sw, vw - sx);
+    sh = Math.min(sh, vh - sy);
+    if (sw < 8 || sh < 8) return null;
+    return { sx, sy, sw, sh };
+  }
+  function savePipToLs() {
+    try {
+      localStorage.setItem(LS_PIP, JSON.stringify({
+        tlx: pipTLx.value,
+        tly: pipTLy.value,
+        brx: pipBRx.value,
+        bry: pipBRy.value,
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  function loadPipFromLs() {
+    try {
+      const j = JSON.parse(localStorage.getItem(LS_PIP) || 'null');
+      if (!j || typeof j !== 'object') return;
+      if (j.tlx != null) pipTLx.value = String(j.tlx);
+      if (j.tly != null) pipTLy.value = String(j.tly);
+      if (j.brx != null) pipBRx.value = String(j.brx);
+      if (j.bry != null) pipBRy.value = String(j.bry);
+    } catch (e) { /* ignore */ }
+  }
+
+  let pipLoopWanted = false;
+  let pipVfcId = null;
+  let pipRafId = null;
+
+  function stopPipLoop() {
+    pipLoopWanted = false;
+    if (pipVfcId != null && typeof video.cancelVideoFrameCallback === 'function') {
+      video.cancelVideoFrameCallback(pipVfcId);
+    }
+    pipVfcId = null;
+    if (pipRafId != null) cancelAnimationFrame(pipRafId);
+    pipRafId = null;
+  }
+
+  function pipVfcHandler() {
+    if (!pipLoopWanted) return;
+    tickPip();
+    if (pipLoopWanted && typeof video.requestVideoFrameCallback === 'function') {
+      pipVfcId = video.requestVideoFrameCallback(pipVfcHandler);
+    }
+  }
+  function pipRafHandler() {
+    if (!pipLoopWanted) return;
+    tickPip();
+    if (pipLoopWanted) pipRafId = requestAnimationFrame(pipRafHandler);
+  }
+
+  function startPipLoop() {
+    if (pipLoopWanted) return;
+    pipLoopWanted = true;
+    if (typeof video.requestVideoFrameCallback === 'function') {
+      pipVfcId = video.requestVideoFrameCallback(pipVfcHandler);
+    } else {
+      pipRafId = requestAnimationFrame(pipRafHandler);
+    }
+  }
+
+  function tickPip() {
+    if (!pipLoopWanted) return;
+    if (!playerOuter.classList.contains('has-stream')) {
+      pipCanvas.classList.remove('pip-canvas-visible');
+      return;
+    }
+    if (!pipCropModeActive()) {
+      pipCanvas.classList.remove('pip-canvas-visible');
+      return;
+    }
+    if (video.readyState < 2) {
+      pipCanvas.classList.remove('pip-canvas-visible');
+      return;
+    }
+    const r = normalizedPipSourceRect();
+    if (!r) {
+      pipCanvas.classList.remove('pip-canvas-visible');
+      return;
+    }
+    const wrap = pipCanvas.parentElement;
+    if (!wrap) return;
+    const maxCssW = Math.min(240, Math.max(80, wrap.clientWidth * 0.28));
+    const scale = maxCssW / r.sw;
+    const outW = Math.max(48, Math.round(r.sw * scale));
+    const outH = Math.max(48, Math.round(r.sh * scale));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    pipCanvas.style.width = outW + 'px';
+    pipCanvas.style.height = outH + 'px';
+    const bw = Math.max(1, Math.round(outW * dpr));
+    const bh = Math.max(1, Math.round(outH * dpr));
+    if (pipCanvas.width !== bw || pipCanvas.height !== bh) {
+      pipCanvas.width = bw;
+      pipCanvas.height = bh;
+    }
+    pipCtx.setTransform(1, 0, 0, 1, 0, 0);
+    pipCtx.clearRect(0, 0, bw, bh);
+    pipCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    try {
+      pipCtx.drawImage(video, r.sx, r.sy, r.sw, r.sh, 0, 0, outW, outH);
+    } catch (e) {
+      pipCanvas.classList.remove('pip-canvas-visible');
+      return;
+    }
+    pipCtx.setTransform(1, 0, 0, 1, 0, 0);
+    pipCanvas.classList.add('pip-canvas-visible');
+  }
+
+  function syncPipLoop() {
+    stopPipLoop();
+    pipCanvas.classList.remove('pip-canvas-visible');
+    if (!playerOuter.classList.contains('has-stream')) return;
+    if (!pipCropModeActive()) return;
+    if (!normalizedPipSourceRect()) return;
+    startPipLoop();
+  }
+
+  [pipTLx, pipTLy, pipBRx, pipBRy].forEach(el => {
+    el.addEventListener('input', () => { savePipToLs(); syncPipLoop(); });
+    el.addEventListener('change', () => { savePipToLs(); syncPipLoop(); });
+  });
+  video.addEventListener('loadeddata', syncPipLoop);
+  video.addEventListener('emptied', syncPipLoop);
+  window.addEventListener('resize', () => { if (pipLoopWanted) tickPip(); });
+  loadPipFromLs();
 
   const modeBar = document.getElementById('modeBar');
   modeBar.addEventListener('mousedown', e => {
@@ -730,6 +975,7 @@
     modeTag.textContent   = mode || '—';
     modeTag.className     = 'mode-tag' + (mode === 'WebRTC' ? ' webrtc' : mode === 'HLS' ? ' hls' : '');
     playerOuter.classList.toggle('has-stream', !!live);
+    syncPipLoop();
   }
   function showOverlay(label) { overlay.classList.remove('hidden'); overlayLbl.textContent = label || ''; }
   function hideOverlay()       { overlay.classList.add('hidden'); }
