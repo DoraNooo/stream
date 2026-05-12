@@ -172,6 +172,8 @@
       border-radius: 0 !important;
       display: flex; align-items: center; justify-content: center;
       background: #000;
+      /* Évite de clipper les overlays (format / contrôles) au-delà du wrapper vidéo */
+      overflow: visible;
     }
     .player-outer:fullscreen:not(.crop-auto) .crop-wrapper,
     .player-outer:-webkit-full-screen:not(.crop-auto) .crop-wrapper {
@@ -227,40 +229,41 @@
 
     /* Barre format en overlay (plein écran + survol lecteur) */
     .fs-crop-bar {
-      position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 5;
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
       display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; justify-content: center;
       max-width: calc(100% - 24px);
       padding: .35rem .5rem; border-radius: 10px;
       background: rgba(8,10,15,.72); border: 1px solid rgba(255,255,255,.1);
       backdrop-filter: blur(8px);
-      opacity: 0; transition: opacity .2s; pointer-events: none;
+      opacity: 0; transition: opacity .22s ease-out; pointer-events: none;
       -webkit-user-select: none;
       user-select: none;
     }
-    .player-outer:hover .fs-crop-bar,
-    .player-outer:fullscreen .fs-crop-bar,
-    .player-outer:-webkit-full-screen .fs-crop-bar { opacity: 1; pointer-events: auto; }
+    .player-outer.player-ui-visible .fs-crop-bar {
+      opacity: 1;
+      pointer-events: auto;
+    }
     .fs-crop-bar .crop-label { margin-right: .15rem; }
     .fs-crop-bar .crop-btn { font-size: .72rem; padding: .22rem .5rem; }
 
     /* ── Barre de contrôles custom ─────────────────────────────────────────
-       Apparaît au survol du player, en bas à droite.
-       Contient : bouton son + slider volume + séparateur + bouton fullscreen.
+       Même logique que la barre format : visible si .player-ui-visible (souris / touch).
     ──────────────────────────────────────────────────────────────────────── */
     .ctrl-bar {
-      position: absolute; bottom: 14px; right: 14px; z-index: 4;
+      position: absolute; bottom: 14px; right: 14px; z-index: 19;
       display: flex; align-items: center; gap: 4px;
       padding: 4px 8px; border-radius: 30px;
       background: rgba(8,10,15,.62); border: 1px solid rgba(255,255,255,.1);
       backdrop-filter: blur(8px);
-      opacity: 0; transition: opacity .2s;
+      opacity: 0; transition: opacity .22s ease-out;
       pointer-events: none;
       -webkit-user-select: none;
       user-select: none;
     }
-    .player-outer:hover .ctrl-bar,
-    .player-outer:fullscreen .ctrl-bar,
-    .player-outer:-webkit-full-screen .ctrl-bar { opacity: 1; pointer-events: auto; }
+    .player-outer.player-ui-visible .ctrl-bar {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
     .ctrl-btn, .btn-fs {
       width: 28px; height: 28px; border-radius: 50%;
@@ -440,7 +443,7 @@
       </button>
     </div>
 
-    <!-- Format en overlay : visible au survol du lecteur et en plein écran -->
+    <!-- Format en overlay : affiché au mouvement souris / touch (classe player-ui-visible) -->
     <div class="fs-crop-bar" id="fsCropBar" aria-label="Format d’affichage">
       <span class="crop-label">Format</span>
       <button type="button" class="crop-btn active" data-w="32" data-h="9">32:9</button>
@@ -509,6 +512,42 @@
   const playerOuter = document.getElementById('playerOuter');
   const root        = document.documentElement;
 
+  function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement;
+  }
+
+  const PLAYER_UI_HIDE_MS = 2800;
+  let playerUiHideTimer = null;
+  function clearPlayerUiHideTimer() {
+    if (playerUiHideTimer) {
+      clearTimeout(playerUiHideTimer);
+      playerUiHideTimer = null;
+    }
+  }
+  function hidePlayerChrome() {
+    clearPlayerUiHideTimer();
+    playerOuter.classList.remove('player-ui-visible');
+  }
+  function bumpPlayerUiChrome() {
+    playerOuter.classList.add('player-ui-visible');
+    clearPlayerUiHideTimer();
+    playerUiHideTimer = setTimeout(hidePlayerChrome, PLAYER_UI_HIDE_MS);
+  }
+  function onGlobalPointerActivity(ev) {
+    const fsEl = getFullscreenElement();
+    if (fsEl === playerOuter) {
+      bumpPlayerUiChrome();
+      return;
+    }
+    if (playerOuter.contains(ev.target)) bumpPlayerUiChrome();
+  }
+
+  document.addEventListener('mousemove', onGlobalPointerActivity, { passive: true });
+  document.addEventListener('touchstart', onGlobalPointerActivity, { passive: true });
+  playerOuter.addEventListener('mouseleave', () => {
+    if (getFullscreenElement() !== playerOuter) hidePlayerChrome();
+  });
+
   let hlsInstance = null;
   let pc = null;
   let forceHLS = false; // true = mode Qualité
@@ -561,6 +600,7 @@
     if (e.target.closest('.crop-btn')) e.preventDefault();
   });
   fsCropBar.addEventListener('click', e => {
+    bumpPlayerUiChrome();
     const btn = e.target.closest('.crop-btn');
     if (!btn) return;
     applyCropFromButton(btn);
@@ -612,30 +652,46 @@
     if (video.muted) volSlider.value = 0;
     else             volSlider.value = video.volume || 1;
     updateVolIcon();
+    bumpPlayerUiChrome();
   });
 
   volSlider.addEventListener('input', () => {
     video.volume = parseFloat(volSlider.value);
     video.muted  = video.volume === 0;
     updateVolIcon();
+    bumpPlayerUiChrome();
   });
 
   // Initialise l'icône une fois le flux démarré
   video.addEventListener('volumechange', updateVolIcon);
   updateVolIcon();
 
-  // ── Fullscreen ────────────────────────────────────────────────────────────
+  // ── Fullscreen + icône ────────────────────────────────────────────────────
   const SVG_FS_EXPAND = `<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>`;
   const SVG_FS_SHRINK = `<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>`;
 
+  function syncFsIcon() {
+    document.getElementById('fsIcon').innerHTML =
+      getFullscreenElement() === playerOuter ? SVG_FS_SHRINK : SVG_FS_EXPAND;
+  }
+
   document.getElementById('btnFs').addEventListener('click', () => {
-    if (!document.fullscreenElement) playerOuter.requestFullscreen().catch(() => {});
-    else                              document.exitFullscreen().catch(() => {});
+    bumpPlayerUiChrome();
+    if (getFullscreenElement() !== playerOuter) {
+      const req = playerOuter.requestFullscreen || playerOuter.webkitRequestFullscreen;
+      if (req) req.call(playerOuter).catch(() => {});
+    } else {
+      const ex = document.exitFullscreen || document.webkitExitFullscreen;
+      if (ex) ex.call(document).catch(() => {});
+    }
   });
 
-  document.addEventListener('fullscreenchange', () => {
-    document.getElementById('fsIcon').innerHTML = document.fullscreenElement ? SVG_FS_SHRINK : SVG_FS_EXPAND;
-  });
+  function onFullscreenTransition() {
+    hidePlayerChrome();
+    syncFsIcon();
+  }
+  document.addEventListener('fullscreenchange', onFullscreenTransition);
+  document.addEventListener('webkitfullscreenchange', onFullscreenTransition);
 
   // ── UI ────────────────────────────────────────────────────────────────────
   function setStatus(type, text) {
