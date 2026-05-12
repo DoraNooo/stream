@@ -1003,8 +1003,16 @@
         if (!pipTLx.value.trim()) applyPipBlock(m, PIP_DEFAULT_MINIMAP);
         if (j.timer) applyPipBlock(t, j.timer);
         if (!pipTimerTLx.value.trim()) applyPipBlock(t, PIP_DEFAULT_TIMER);
-        if (j.minimapSize != null && j.minimapSize !== '') pipSizeMinimap.value = String(Math.max(0, Math.min(100, parseInt(j.minimapSize, 10) || 100)));
-        if (j.timerSize != null && j.timerSize !== '') pipSizeTimer.value = String(Math.max(0, Math.min(100, parseInt(j.timerSize, 10) || 100)));
+        if (j.minimapSize != null && j.minimapSize !== '') {
+          pipSizeMinimap.value = String(Math.max(0, Math.min(100, parseInt(j.minimapSize, 10) || 100)));
+        } else {
+          pipSizeMinimap.value = '100';
+        }
+        if (j.timerSize != null && j.timerSize !== '') {
+          pipSizeTimer.value = String(Math.max(0, Math.min(100, parseInt(j.timerSize, 10) || 100)));
+        } else {
+          pipSizeTimer.value = '100';
+        }
         pipActiveMinimap.checked = j.minimapActive == null ? true : !!j.minimapActive;
         pipActiveTimer.checked = j.timerActive == null ? true : !!j.timerActive;
         updatePipSizeLabels();
@@ -1023,12 +1031,16 @@
         }
         if (!pipTLx.value.trim()) applyPipBlock(m, PIP_DEFAULT_MINIMAP);
         if (!pipTimerTLx.value.trim()) applyPipBlock(t, PIP_DEFAULT_TIMER);
+        pipSizeMinimap.value = '100';
+        pipSizeTimer.value = '100';
         updatePipSizeLabels();
         return;
       }
     } catch (e) { /* ignore */ }
     applyPipBlock(m, PIP_DEFAULT_MINIMAP);
     applyPipBlock(t, PIP_DEFAULT_TIMER);
+    pipSizeMinimap.value = '100';
+    pipSizeTimer.value = '100';
     updatePipSizeLabels();
   }
 
