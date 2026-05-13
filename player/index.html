@@ -162,7 +162,7 @@
       display: none;
     }
 
-    /* Vignettes (copie de zones du flux en px source) — tous les formats + plein écran Auto */
+    /* Vignettes (copie de zones du flux en px source) — 21:9, 16:9 et Auto ; pas en 32:9 (flux déjà entier). */
     .pip-canvas {
       position: absolute;
       z-index: 8;
@@ -932,8 +932,7 @@
   }
   function pipCropModeActive() {
     return (
-      playerOuter.classList.contains('crop-fix-32')
-      || playerOuter.classList.contains('crop-fix-21')
+      playerOuter.classList.contains('crop-fix-21')
       || playerOuter.classList.contains('crop-fix-16')
       || playerOuter.classList.contains('crop-auto')
     );
