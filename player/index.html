@@ -162,7 +162,7 @@
       display: none;
     }
 
-    /* Vignettes (copie de zones du flux) — 21:9 / 16:9 seulement, collées aux bords */
+    /* Vignettes (copie de zones du flux en px source) — tous les formats + plein écran Auto */
     .pip-canvas {
       position: absolute;
       z-index: 8;
@@ -931,7 +931,12 @@
     return Number.isFinite(n) ? n : NaN;
   }
   function pipCropModeActive() {
-    return playerOuter.classList.contains('crop-fix-21') || playerOuter.classList.contains('crop-fix-16');
+    return (
+      playerOuter.classList.contains('crop-fix-32')
+      || playerOuter.classList.contains('crop-fix-21')
+      || playerOuter.classList.contains('crop-fix-16')
+      || playerOuter.classList.contains('crop-auto')
+    );
   }
   function normalizedPipRectFromEls(tlxEl, tlyEl, brxEl, bryEl) {
     const vw = video.videoWidth | 0;
