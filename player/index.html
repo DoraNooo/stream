@@ -439,6 +439,7 @@
     .pip-panel {
       flex-shrink: 0;
       width: min(98vw, 130rem);
+      margin-top: auto;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -680,6 +681,17 @@
     </div>
   </div>
 
+  <div class="panel">
+    <label for="key">Clé de stream</label>
+    <div class="input-row">
+      <input id="key" type="text" placeholder="ex : test (auto ll- / hq- selon le mode)" autocomplete="off" spellcheck="false" />
+      <button type="button" class="btn btn-primary" id="go">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5a.5.5 0 0 1 .765-.424l10 5.5a.5.5 0 0 1 0 .848l-10 5.5A.5.5 0 0 1 3 13.5v-11Z"/></svg>
+        Lancer
+      </button>
+    </div>
+  </div>
+
   <div class="pip-panel" id="pipPanel">
     <div class="pip-panel-toolbar">
       <span class="pip-panel-title">Vignettes (minimap · timer)</span>
@@ -720,17 +732,6 @@
           <span class="pip-size-val" id="pipSizeTimerLbl">100 %</span>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <label for="key">Clé de stream</label>
-    <div class="input-row">
-      <input id="key" type="text" placeholder="ex : test (auto ll- / hq- selon le mode)" autocomplete="off" spellcheck="false" />
-      <button type="button" class="btn btn-primary" id="go">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5a.5.5 0 0 1 .765-.424l10 5.5a.5.5 0 0 1 0 .848l-10 5.5A.5.5 0 0 1 3 13.5v-11Z"/></svg>
-        Lancer
-      </button>
     </div>
   </div>
 
